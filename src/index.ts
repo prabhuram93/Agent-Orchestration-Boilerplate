@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { getSandbox } from '@cloudflare/sandbox';
 
 // Minimal inlined HTML page for local testing
 const html = `<!doctype html>
@@ -18,7 +19,7 @@ const html = `<!doctype html>
 <body>
   <h1>Magento Analysis Boilerplate</h1>
   <div class="row">
-    <label>Root Path: <input id="rootPath" type="text" placeholder="/path/to/magento" /></label>
+    <label>Repo URL: <input id="repoUrl" type="text" placeholder="https://github.com/owner/repo.git" /></label>
     <button id="run" type="button">Analyze</button>
   </div>
   <h3>Progress</h3>
@@ -45,12 +46,12 @@ const clientJs = [
   "    runBtn.disabled = true;",
   "    logEl.textContent = '';",
   "    resultEl.value = '';",
-  "    var rootInput = document.getElementById('rootPath');",
-  "    var rootPath = rootInput && rootInput.value ? rootInput.value : '';",
+  "    var repoInput = document.getElementById('repoUrl');",
+  "    var repo = repoInput && repoInput.value ? repoInput.value : '';",
   "    fetch('/api/analyze', {",
   "      method: 'POST',",
   "      headers: { 'content-type': 'application/json' },",
-  "      body: JSON.stringify({ rootPath: rootPath })",
+  "      body: JSON.stringify({ repo: repo })",
   "    }).then(function(res){",
   "      if (!res.ok) {",
   "        return res.text().then(function(text){",
@@ -107,19 +108,51 @@ app.get('/app.js', (c) => new Response(clientJs, {
 app.get('/favicon.ico', () => new Response(null, { status: 204 }));
 
 app.post('/api/analyze', async (c) => {
-  const body = await c.req.json().catch(() => ({}));
-  const rootPath: string = body.rootPath || '';
+  const body = await c.req.json().catch(() => ({} as any));
+  let rootPath: string = body.rootPath || '';
+  const repo: string | undefined = body.repo;
+  const task: string | undefined = body.task; // optional; not used by analyzer but accepted
+  const envVars: Record<string, string> | undefined = body.envVars;
 
   const encoder = new TextEncoder();
+  // Create sandbox session if binding exists; fall back to local stubs otherwise
+  let sandbox: any | undefined;
+  try {
+    const binding = (c as any).env?.Sandbox;
+    if (binding) {
+      const id = 'm2-' + Date.now();
+      sandbox = getSandbox(binding, id);
+    }
+  } catch {}
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const send = (obj: unknown) => controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
       (async () => {
         const onProgress = (message: string) => send({ type: 'progress', message });
         onProgress('Starting analysis...');
+        if (!sandbox) {
+          send({ type: 'error', message: 'Sandbox binding not available. Run "npx wrangler dev --remote" and ensure wrangler.jsonc has unsafe.bindings with { name: "Sandbox", type: "sandbox" }.' });
+          controller.close();
+          return;
+        }
         try {
+          // Optional: set environment variables into the sandbox session
+          if (sandbox && envVars && typeof envVars === 'object') {
+            await sandbox.setEnvVars(envVars);
+          }
+
+          // If a repo is provided and no explicit rootPath, clone the repo into the sandbox
+          if (sandbox && repo && !rootPath) {
+            const name = (repo.split('/')?.pop() || 'repo').replace(/\.git$/,'');
+            onProgress('Cloning repository: ' + repo);
+            await sandbox.exec('ls')
+            await sandbox.gitCheckout(repo, { targetDir: name });
+            rootPath = name;
+            onProgress('Clone complete: ' + name);
+          }
+
           const agent = new SimpleAnalysisAgent();
-          await agent.initialize({ rootPath, onProgress });
+          await agent.initialize({ rootPath, onProgress, sandbox });
           await agent.runEndToEnd();
           onProgress('Finished');
           send({ type: 'result', data: agent.state.results || {} });
@@ -142,4 +175,7 @@ app.post('/api/analyze', async (c) => {
 });
 
 export default app;
+
+// Export the Sandbox Durable Object class required by the binding
+export { Sandbox } from '@cloudflare/sandbox';
 

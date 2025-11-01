@@ -8,7 +8,8 @@
     "deploy": "npx wrangler deploy"
   },
   "dependencies": {
-    "hono": "^4.4.10"
+    "hono": "^4.4.10",
+    "@cloudflare/sandbox": "0.4.14"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

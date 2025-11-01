@@ -19,6 +19,7 @@ export interface AgentInitArgs {
   rootPath?: string;
   inferenceContext?: unknown;
   onProgress?: (message: string) => void;
+  sandbox?: unknown;
 }
 
 export class SimpleAnalysisAgent extends Agent<unknown, AnalysisState> {
@@ -37,6 +38,9 @@ export class SimpleAnalysisAgent extends Agent<unknown, AnalysisState> {
 
   async initialize(args: AgentInitArgs): Promise<AnalysisState> {
     this.initArgs = args;
+    if (args.sandbox) {
+      this.fileManager = new FileManager(args.sandbox as any);
+    }
     this.setState({ initialized: true, currentStep: 'initialized' });
     args.onProgress?.('Agent initialized');
     return this.state;
