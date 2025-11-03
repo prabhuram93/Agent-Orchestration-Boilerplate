@@ -66,12 +66,25 @@ const clientJs = `
   var reportEl = document.getElementById('report');
   var downloadBtn = document.getElementById('downloadPdf');
   var fileEl = document.getElementById('repoZip');
+  var repoUrlEl = document.getElementById('repoUrl');
   var currentSessionId = '';
   var currentRepo = '';
   var currentRootPath = '';
 
   function log(msg){ logEl.textContent += msg + '\\n'; }
   function showSpinner(show){ if (spinner) spinner.style.display = show ? 'inline-block' : 'none'; }
+
+  function updateInputsExclusivity(){
+    var repoVal = (repoUrlEl && repoUrlEl.value ? repoUrlEl.value.trim() : '');
+    var hasRepo = !!repoVal;
+    var hasFile = !!(fileEl && fileEl.files && fileEl.files.length > 0);
+    if (fileEl) fileEl.disabled = hasRepo;
+    if (repoUrlEl) repoUrlEl.disabled = hasFile;
+    if (runBtn) runBtn.disabled = !((hasRepo && !hasFile) || (!hasRepo && hasFile));
+  }
+  if (repoUrlEl) repoUrlEl.addEventListener('input', updateInputsExclusivity);
+  if (fileEl) fileEl.addEventListener('change', updateInputsExclusivity);
+  updateInputsExclusivity();
 
   function renderReport(data){
     if (!reportEl) return;
@@ -261,7 +274,7 @@ const clientJs = `
     resultEl.value = '';
     if (reportEl) reportEl.innerHTML = '';
     modulePicker.style.display = 'none';
-    currentRepo = (document.getElementById('repoUrl') && document.getElementById('repoUrl').value) || '';
+    currentRepo = (repoUrlEl && repoUrlEl.value) ? repoUrlEl.value.trim() : '';
     var fileInput = fileEl && fileEl.files && fileEl.files[0] ? fileEl.files[0] : null;
     if (fileInput) {
       var fd = new FormData();
