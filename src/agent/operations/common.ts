@@ -2,6 +2,7 @@ export interface OperationOptions {
   env: unknown;
   logger: unknown;
   context: Record<string, unknown>;
+  sandbox?: any;
 }
 
 export abstract class AgentOperation<InputType, OutputType> {

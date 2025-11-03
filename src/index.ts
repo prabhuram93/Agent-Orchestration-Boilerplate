@@ -175,19 +175,23 @@ app.post('/api/analyze', async (c) => {
   const encoder = new TextEncoder();
   // Create sandbox session if binding exists; fall back to local stubs otherwise
   let sandbox: any | undefined;
+  let sessionId: string | undefined = undefined;
   try {
     const binding = (c as any).env?.Sandbox;
     if (binding) {
-      const id = body.sessionId && typeof body.sessionId === 'string' ? body.sessionId : ('m2-' + Date.now());
+      const id: string = typeof body.sessionId === 'string' && body.sessionId.length > 0
+        ? body.sessionId
+        : ('m2-' + Date.now());
       sandbox = getSandbox(binding, id);
+      sessionId = id;
     }
   } catch {}
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const send = (obj: unknown) => controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
       (async () => {
-        const sessionId = (sandbox && (sandbox.id || body.sessionId)) || body.sessionId;
-        const onProgress = (message: string) => send({ type: 'progress', message, sessionId });
+        const sid = sessionId || body.sessionId;
+        const onProgress = (message: string) => send({ type: 'progress', message, sessionId: sid });
         onProgress('Starting analysis...');
         if (!sandbox) {
           send({ type: 'error', message: 'Sandbox binding not available. Run "npx wrangler dev --remote" and ensure wrangler.jsonc has unsafe.bindings with { name: "Sandbox", type: "sandbox" }.' });
@@ -196,6 +200,18 @@ app.post('/api/analyze', async (c) => {
         }
         try {
           // Optional: set environment variables into the sandbox session
+          const cfAnthropicKey = (c as any).env?.ANTHROPIC_API_KEY as string | undefined;
+          console.log('[analyze] ANTHROPIC_API_KEY present in Worker env:', !!cfAnthropicKey);
+          if (cfAnthropicKey && typeof cfAnthropicKey === 'string') {
+            await sandbox.setEnvVars({ ANTHROPIC_API_KEY: cfAnthropicKey });
+            try {
+              const check = await sandbox.exec(`bash -lc 'if [ -n "$ANTHROPIC_API_KEY" ]; then echo key_ok; else echo key_missing; fi'`);
+              const status = (check?.stdout || check?.stderr || '').toString().trim();
+              console.log('[analyze] Sandbox ANTHROPIC_API_KEY status:', status);
+            } catch (e) {
+              console.log('[analyze] Sandbox env var check error:', (e as Error)?.message || String(e));
+            }
+          }
           if (sandbox && envVars && typeof envVars === 'object') {
             await sandbox.setEnvVars(envVars);
           }
@@ -230,7 +246,7 @@ app.post('/api/analyze', async (c) => {
           const agent = new SimpleAnalysisAgent();
           await agent.initialize({ rootPath, onProgress, sandbox, onEvent: (evt) => {
             if (evt && (evt as any).type === 'select-modules') {
-              send({ type: 'select-modules', modules: (evt as any).modules || [], sessionId, rootPath });
+              send({ type: 'select-modules', modules: (evt as any).modules || [], sessionId: sid, rootPath });
               controller.close();
             }
           }, selectedModules: Array.isArray(body.selectedModules) ? body.selectedModules : undefined });

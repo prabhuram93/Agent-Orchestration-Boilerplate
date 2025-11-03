@@ -70,7 +70,8 @@ export class SimpleAnalysisAgent extends Agent<unknown, AnalysisState> {
     const options: OperationOptions = {
       env: undefined,
       logger: undefined,
-      context: { rootPath }
+      context: { rootPath },
+      sandbox: this.initArgs?.sandbox as any
     };
 
     onProgress?.('Planning modules...');
