@@ -14,6 +14,8 @@ const html = `<!doctype html>
     pre { background: #111; color: #0f0; padding: 1rem; white-space: pre-wrap; }
     .row { display: flex; gap: 1rem; align-items: center; }
     input[type=text] { width: 360px; }
+    .spinner { display: none; width: 14px; height: 14px; border: 2px solid #888; border-top-color: transparent; border-radius: 50%; animation: spin 0.9s linear infinite; vertical-align: middle; margin-left: 8px; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
   </head>
 <body>
@@ -22,7 +24,7 @@ const html = `<!doctype html>
     <label>Repo URL: <input id="repoUrl" type="text" placeholder="https://github.com/owner/repo.git" /></label>
     <button id="run" type="button">Analyze</button>
   </div>
-  <h3>Progress</h3>
+  <h3>Progress <span id="spinner" class="spinner" aria-live="polite" aria-busy="false"></span></h3>
   <pre id="log"></pre>
   <h3>Final Result</h3>
   <textarea id="result" readonly></textarea>
@@ -37,6 +39,7 @@ const clientJs = [
   "  var runBtn = document.getElementById('run');",
   "  var logEl = document.getElementById('log');",
   "  var resultEl = document.getElementById('result');",
+  "  var spinner = document.getElementById('spinner');",
   "  function log(msg){ logEl.textContent += msg + '\\n'; }",
   "  if (!runBtn) { console.error('Analyze button not found'); return; }",
   "  runBtn.addEventListener('click', function(e){",
@@ -44,6 +47,7 @@ const clientJs = [
   "    console.log('Analyze clicked');",
   "    log('Analyze clicked');",
   "    runBtn.disabled = true;",
+  "    if (spinner) spinner.style.display = 'inline-block';",
   "    logEl.textContent = '';",
   "    resultEl.value = '';",
   "    var repoInput = document.getElementById('repoUrl');",
@@ -89,6 +93,7 @@ const clientJs = [
   "      log('Request error: ' + (e && e.message ? e.message : String(e)));",
   "    }).finally(function(){",
   "      runBtn.disabled = false;",
+  "      if (spinner) spinner.style.display = 'none';",
   "    });",
   "  });",
   "})();"
