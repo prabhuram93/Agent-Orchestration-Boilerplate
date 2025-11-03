@@ -21,6 +21,8 @@ export interface AgentInitArgs {
   inferenceContext?: unknown;
   onProgress?: (message: string) => void;
   sandbox?: unknown;
+  onEvent?: (event: { type: string; [key: string]: unknown }) => void;
+  selectedModules?: string[];
 }
 
 export class SimpleAnalysisAgent extends Agent<unknown, AnalysisState> {
@@ -78,11 +80,21 @@ export class SimpleAnalysisAgent extends Agent<unknown, AnalysisState> {
     const discoveredModules = await this.fileManager.listPhpModules(rootPath);
     const modules = plan.modules.length > 0 ? plan.modules : discoveredModules;
 
-    onProgress?.(`Found ${modules.length} modules. Extracting business logic and computing complexity...`);
+    if (!this.initArgs?.selectedModules && modules.length > 0) {
+      this.stateManager.batchUpdate({ currentStep: 'awaiting-selection' });
+      this.initArgs?.onEvent?.({ type: 'select-modules', modules });
+      return; // pause flow until user selects
+    }
+
+    const modulesToAnalyze = this.initArgs?.selectedModules && this.initArgs.selectedModules.length > 0
+      ? this.initArgs.selectedModules
+      : modules;
+
+    onProgress?.(`Found ${modulesToAnalyze.length} modules. Extracting business logic and computing complexity...`);
     this.stateManager.batchUpdate({ currentStep: 'analyzing' });
 
     const results: Record<string, unknown>[] = [];
-    for (const modulePath of modules) {
+    for (const modulePath of modulesToAnalyze) {
       const logic = await this.operations.extract.execute({ modulePath }, options);
       const complexity = await this.operations.complexity.execute({ modulePath }, options);
       results.push({ modulePath, logic, complexity });

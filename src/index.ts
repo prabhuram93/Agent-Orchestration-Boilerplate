@@ -28,6 +28,7 @@ const html = `<!doctype html>
   <pre id="log"></pre>
   <h3>Final Result</h3>
   <textarea id="result" readonly></textarea>
+  <div id="modulePicker" style="display:none; margin-top: 12px;"></div>
   <script src="/app.js"></script>
 </body>
 </html>`;
@@ -40,22 +41,61 @@ const clientJs = [
   "  var logEl = document.getElementById('log');",
   "  var resultEl = document.getElementById('result');",
   "  var spinner = document.getElementById('spinner');",
+  "  var modulePicker = document.getElementById('modulePicker');",
+  "  var currentSessionId = '';",
+  "  var currentRepo = '';",
+  "  var currentRootPath = '';",
   "  function log(msg){ logEl.textContent += msg + '\\n'; }",
-  "  if (!runBtn) { console.error('Analyze button not found'); return; }",
-  "  runBtn.addEventListener('click', function(e){",
-  "    e.preventDefault();",
-  "    console.log('Analyze clicked');",
-  "    log('Analyze clicked');",
-  "    runBtn.disabled = true;",
-  "    if (spinner) spinner.style.display = 'inline-block';",
-  "    logEl.textContent = '';",
-  "    resultEl.value = '';",
-  "    var repoInput = document.getElementById('repoUrl');",
-  "    var repo = repoInput && repoInput.value ? repoInput.value : '';",
+  "  function showSpinner(show){ if (spinner) spinner.style.display = show ? 'inline-block' : 'none'; }",
+  "  function renderModulePicker(modules, sessionId, rootPath){",
+  "    if (!modulePicker) return;",
+  "    currentSessionId = sessionId;",
+  "    if (rootPath) currentRootPath = rootPath;",
+  "    modulePicker.innerHTML = '';",
+  "    var title = document.createElement('div');",
+  "    title.innerHTML = 'Select modules to analyze:';",
+  "    modulePicker.appendChild(title);",
+  "    var box = document.createElement('div');",
+  "    box.style.margin = '8px 0';",
+  "    box.style.maxHeight = '200px';",
+  "    box.style.overflow = 'auto';",
+  "    box.style.border = '1px solid #333';",
+  "    box.style.padding = '8px';",
+  "    modulePicker.appendChild(box);",
+  "    for (var i=0;i<modules.length;i++){",
+  "      var m = modules[i];",
+  "      var wrap = document.createElement('div');",
+  "      var label = document.createElement('label');",
+  "      var cb = document.createElement('input');",
+  "      cb.type = 'checkbox';",
+  "      cb.value = m;",
+  "      cb.id = 'mod_'+i;",
+  "      label.appendChild(cb);",
+  "      label.appendChild(document.createTextNode(' ' + m));",
+  "      wrap.appendChild(label);",
+  "      box.appendChild(wrap);",
+  "    }",
+  "    var btn = document.createElement('button');",
+  "    btn.id = 'submitModules';",
+  "    btn.textContent = 'Analyze Selected';",
+  "    modulePicker.appendChild(btn);",
+  "    modulePicker.style.display = 'block';",
+  "    var btn = document.getElementById('submitModules');",
+  "    if (btn) btn.onclick = function(){",
+  "      var inputs = modulePicker.querySelectorAll('input[type=checkbox]:checked');",
+  "      var selected = [];",
+  "      for (var j=0;j<inputs.length;j++){ selected.push(inputs[j].value); }",
+  "      if (selected.length === 0){ log('No modules selected.'); return; }",
+  "      modulePicker.style.display = 'none';",
+  "      startStream({ repo: currentRepo, sessionId: currentSessionId, selectedModules: selected, rootPath: currentRootPath });",
+  "    };",
+  "  }",
+  "  function startStream(body){",
+  "    showSpinner(true);",
   "    fetch('/api/analyze', {",
   "      method: 'POST',",
   "      headers: { 'content-type': 'application/json' },",
-  "      body: JSON.stringify({ repo: repo })",
+  "      body: JSON.stringify(body)",
   "    }).then(function(res){",
   "      if (!res.ok) {",
   "        return res.text().then(function(text){",
@@ -82,6 +122,11 @@ const clientJs = [
   "              if (obj.type === 'progress') log(obj.message);",
   "              else if (obj.type === 'result') resultEl.value = JSON.stringify(obj.data, null, 2);",
   "              else if (obj.type === 'error') log('Error: ' + obj.message);",
+  "              else if (obj.type === 'select-modules'){",
+  "                if (obj.sessionId) currentSessionId = obj.sessionId;",
+  "                if (obj.rootPath) currentRootPath = obj.rootPath;",
+  "                renderModulePicker(obj.modules || [], obj.sessionId || currentSessionId, obj.rootPath || currentRootPath);",
+  "              }",
   "            } catch (e) { console.error('Failed to parse line', line, e); }",
   "          }",
   "          return pump();",
@@ -92,9 +137,17 @@ const clientJs = [
   "      console.error(e);",
   "      log('Request error: ' + (e && e.message ? e.message : String(e)));",
   "    }).finally(function(){",
-  "      runBtn.disabled = false;",
-  "      if (spinner) spinner.style.display = 'none';",
+  "      showSpinner(false);",
   "    });",
+  "  }",
+  "  if (!runBtn) { console.error('Analyze button not found'); return; }",
+  "  runBtn.addEventListener('click', function(e){",
+  "    e.preventDefault();",
+  "    logEl.textContent = '';",
+  "    resultEl.value = '';",
+  "    modulePicker.style.display = 'none';",
+  "    currentRepo = (document.getElementById('repoUrl') && document.getElementById('repoUrl').value) || '';",
+  "    startStream({ repo: currentRepo });",
   "  });",
   "})();"
 ].join('\n');
@@ -125,7 +178,7 @@ app.post('/api/analyze', async (c) => {
   try {
     const binding = (c as any).env?.Sandbox;
     if (binding) {
-      const id = 'm2-' + Date.now();
+      const id = body.sessionId && typeof body.sessionId === 'string' ? body.sessionId : ('m2-' + Date.now());
       sandbox = getSandbox(binding, id);
     }
   } catch {}
@@ -133,7 +186,8 @@ app.post('/api/analyze', async (c) => {
     start(controller) {
       const send = (obj: unknown) => controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
       (async () => {
-        const onProgress = (message: string) => send({ type: 'progress', message });
+        const sessionId = (sandbox && (sandbox.id || body.sessionId)) || body.sessionId;
+        const onProgress = (message: string) => send({ type: 'progress', message, sessionId });
         onProgress('Starting analysis...');
         if (!sandbox) {
           send({ type: 'error', message: 'Sandbox binding not available. Run "npx wrangler dev --remote" and ensure wrangler.jsonc has unsafe.bindings with { name: "Sandbox", type: "sandbox" }.' });
@@ -146,18 +200,29 @@ app.post('/api/analyze', async (c) => {
             await sandbox.setEnvVars(envVars);
           }
 
-          // If a repo is provided and no explicit rootPath, clone the repo into the sandbox
+          // If a repo is provided and no explicit rootPath, ensure repo exists in session; clone only if missing
           if (sandbox && repo && !rootPath) {
             const name = (repo.split('/')?.pop() || 'repo').replace(/\.git$/,'');
-            onProgress('Cloning repository: ' + repo);
-            await sandbox.exec('ls')
-            await sandbox.gitCheckout(repo, { targetDir: name });
+            // Check if directory already exists
+            const check = await sandbox.exec(`bash -lc 'if [ -d "${name}" ]; then echo exists; else echo missing; fi'`);
+            const exists = (check && check.stdout && check.stdout.includes('exists'));
+            if (!exists) {
+              onProgress('Cloning repository: ' + repo);
+              await sandbox.gitCheckout(repo, { targetDir: name });
+              onProgress('Clone complete: ' + name);
+            } else {
+              onProgress('Repository already present. Skipping clone.');
+            }
             rootPath = name;
-            onProgress('Clone complete: ' + name);
           }
 
           const agent = new SimpleAnalysisAgent();
-          await agent.initialize({ rootPath, onProgress, sandbox });
+          await agent.initialize({ rootPath, onProgress, sandbox, onEvent: (evt) => {
+            if (evt && (evt as any).type === 'select-modules') {
+              send({ type: 'select-modules', modules: (evt as any).modules || [], sessionId, rootPath });
+              controller.close();
+            }
+          }, selectedModules: Array.isArray(body.selectedModules) ? body.selectedModules : undefined });
           await agent.runEndToEnd();
           onProgress('Finished');
           send({ type: 'result', data: agent.state.results || {} });
