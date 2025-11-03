@@ -92,6 +92,7 @@ export class SimpleAnalysisAgent extends Agent<unknown, AnalysisState> {
       ? this.initArgs.selectedModules
       : modules;
 
+    
     onProgress?.(`Found ${modulesToAnalyze.length} modules. Extracting business logic and computing complexity...`);
     this.stateManager.batchUpdate({ currentStep: 'analyzing' });
 
