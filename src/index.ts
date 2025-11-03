@@ -37,7 +37,7 @@ const html = `<!doctype html>
 <body>
   <h1>Magento Analysis Boilerplate</h1>
   <div class="row">
-    <label>Repo URL: <input id="repoUrl" type="text" placeholder="https://github.com/owner/repo.git" /></label>
+    <label>Repo URL: <input id="repoUrl" type="text" value="https://github.com/magento/magento2" placeholder="https://github.com/owner/repo.git" /></label>
     <button id="run" type="button">Analyze</button>
   </div>
   <h3>Progress <span id="spinner" class="spinner" aria-live="polite" aria-busy="false"></span></h3>
@@ -312,16 +312,54 @@ app.post('/api/analyze', async (c) => {
         try {
           // Optional: set environment variables into the sandbox session
           const cfAnthropicKey = (c as any).env?.ANTHROPIC_API_KEY as string | undefined;
+          // Static defaults for Bedrock/Claude Code configuration (non-secret). Token is NOT hard-coded.
+          const defaultBedrockEnv: Record<string, string> = {
+            AWS_REGION: 'us-east-1',
+            ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION: 'us-east-1',
+            ANTHROPIC_MODEL: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+            ANTHROPIC_SMALL_FAST_MODEL: 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+            ANTHROPIC_BEDROCK_USE_CROSS_REGION_INFERENCE: 'true',
+            CLAUDE_CODE_USE_BEDROCK: '1',
+            CLAUDE_CODE_MAX_OUTPUT_TOKENS: '64000',
+            CLAUDE_CODE_SUBAGENT_MODEL: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0'
+          };
+          const bedrockKeys = [
+            'AWS_REGION',
+            'ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION',
+            'ANTHROPIC_MODEL',
+            'ANTHROPIC_SMALL_FAST_MODEL',
+            'ANTHROPIC_BEDROCK_USE_CROSS_REGION_INFERENCE',
+            'CLAUDE_CODE_USE_BEDROCK',
+            'CLAUDE_CODE_MAX_OUTPUT_TOKENS',
+            'CLAUDE_CODE_SUBAGENT_MODEL',
+            'AWS_BEARER_TOKEN_BEDROCK'
+          ] as const;
+          // Start with defaults, then override with Worker env values if provided
+          const bedrockEnv: Record<string, string> = { ...defaultBedrockEnv };
+          for (const k of bedrockKeys) {
+            const v = (c as any).env?.[k] as string | undefined;
+            if (v && typeof v === 'string') bedrockEnv[k] = v;
+          }
+          // Never set a default for AWS_BEARER_TOKEN_BEDROCK; only forward if provided above
+          if (!((c as any).env?.AWS_BEARER_TOKEN_BEDROCK)) {
+            delete bedrockEnv.AWS_BEARER_TOKEN_BEDROCK;
+          }
           console.log('[analyze] ANTHROPIC_API_KEY present in Worker env:', !!cfAnthropicKey);
-          if (cfAnthropicKey && typeof cfAnthropicKey === 'string') {
+          console.log('[analyze] Bedrock env (non-secret) to apply:', Object.keys({ ...bedrockEnv, AWS_BEARER_TOKEN_BEDROCK: undefined }).filter(k => k !== 'AWS_BEARER_TOKEN_BEDROCK'));
+          if (cfAnthropicKey) {
             await sandbox.setEnvVars({ ANTHROPIC_API_KEY: cfAnthropicKey });
-            try {
-              const check = await sandbox.exec(`bash -lc 'if [ -n "$ANTHROPIC_API_KEY" ]; then echo key_ok; else echo key_missing; fi'`);
-              const status = (check?.stdout || check?.stderr || '').toString().trim();
-              console.log('[analyze] Sandbox ANTHROPIC_API_KEY status:', status);
-            } catch (e) {
-              console.log('[analyze] Sandbox env var check error:', (e as Error)?.message || String(e));
-            }
+          }
+          if (Object.keys(bedrockEnv).length > 0) {
+            await sandbox.setEnvVars(bedrockEnv);
+          }
+          try {
+            const check = await sandbox.exec(
+              `bash -lc 'if env | grep -qE "^(ANTHROPIC_API_KEY|AWS_BEARER_TOKEN_BEDROCK|CLAUDE_CODE_USE_BEDROCK)="; then echo creds_ok; else echo creds_missing; fi'`
+            );
+            const status = (check?.stdout || check?.stderr || '').toString().trim();
+            console.log('[analyze] Sandbox Claude creds status:', status);
+          } catch (e) {
+            console.log('[analyze] Sandbox env var check error:', (e as Error)?.message || String(e));
           }
           if (sandbox && envVars && typeof envVars === 'object') {
             await sandbox.setEnvVars(envVars);

@@ -23,20 +23,20 @@ export class ComplexityAnalysisOperation extends AgentOperation<ComplexityInputs
       return { moduleName: inputs.modulePath };
     }
 
-    // Health checks: CLI availability and API key presence
+    // Health checks: CLI availability and presence of either Anthropic API key or Bedrock config
     try {
       progress?.(`Claude: health check for ${inputs.modulePath}...`);
       const cliCheck = await sandbox.exec(`bash -lc 'command -v claude >/dev/null 2>&1 && echo ok || echo missing'`);
-      const keyCheck = await sandbox.exec(
-        `bash -lc 'cd "${rootPath}" 2>/dev/null || true; if env | grep -q "^ANTHROPIC_API_KEY="; then echo key_ok; else echo key_missing; fi'`
+      const credCheck = await sandbox.exec(
+        `bash -lc 'cd "${rootPath}" 2>/dev/null || true; if env | grep -qE "^(ANTHROPIC_API_KEY|AWS_BEARER_TOKEN_BEDROCK|CLAUDE_CODE_USE_BEDROCK)="; then echo creds_ok; else echo creds_missing; fi'`
       );
       const cliOk = !!(cliCheck?.stdout || '').includes('ok');
-      const keyOk = !!(keyCheck?.stdout || '').includes('key_ok');
-      if (!cliOk || !keyOk) {
-        progress?.(`Claude: unhealthy (cli: ${cliOk ? 'ok' : 'missing'}, key: ${keyOk ? 'ok' : 'missing'})`);
+      const credsOk = !!(credCheck?.stdout || '').includes('creds_ok');
+      if (!cliOk || !credsOk) {
+        progress?.(`Claude: unhealthy (cli: ${cliOk ? 'ok' : 'missing'}, creds: ${credsOk ? 'ok' : 'missing'})`);
         return {
           moduleName: inputs.modulePath,
-          raw: `claude_unhealthy: { cli: ${cliOk ? 'ok' : 'missing'}, key: ${keyOk ? 'ok' : 'missing'} }`
+          raw: `claude_unhealthy: { cli: ${cliOk ? 'ok' : 'missing'}, creds: ${credsOk ? 'ok' : 'missing'} }`
         };
       }
       progress?.('Claude: healthy, starting complexity analysis...');
