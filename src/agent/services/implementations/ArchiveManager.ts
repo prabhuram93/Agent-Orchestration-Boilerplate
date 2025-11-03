@@ -1,3 +1,35 @@
+export async function prepareRemoteZip(
+  sandbox: Sandbox,
+  url: string,
+  onProgress?: (m: string) => void
+): Promise<PrepareUploadResult> {
+  const baseDir = '/workspace';
+  const dir = `${baseDir}/remote-${Date.now()}`;
+  const zipPath = `${dir}/repo.zip`;
+  if (typeof sandbox.mkdir === 'function') {
+    await sandbox.mkdir(dir, { recursive: true });
+  } else {
+    await sandbox.exec(`bash -lc 'mkdir -p "${dir}"'`);
+  }
+  onProgress?.('Downloading archive from remote...');
+  const dl = await sandbox.exec(
+    `bash -lc 'set -e; ` +
+    `if command -v curl >/dev/null 2>&1; then curl -fsSL ${JSON.stringify(url)} -o ${JSON.stringify(zipPath)} || exit 11; ` +
+    `elif command -v wget >/dev/null 2>&1; then wget -qO ${JSON.stringify(zipPath)} ${JSON.stringify(url)} || exit 12; ` +
+    `else exit 13; fi; ` +
+    `test -s ${JSON.stringify(zipPath)} && echo ok || { echo empty; exit 14; }'`
+  );
+  const ok = dl && dl.success !== false && ((dl.stdout || '').toString().includes('ok'));
+  if (!ok) {
+    const out = (dl?.stdout || dl?.stderr || '').toString();
+    onProgress?.('Remote download failed: ' + (out ? out.trim() : 'unknown error'));
+    throw new Error('remote_download_failed');
+  }
+  await extractArchive(sandbox, dir, zipPath, onProgress);
+  const rootPath = await detectProjectRoot(sandbox, dir, onProgress);
+  onProgress?.('Upload ready at: ' + rootPath);
+  return { baseDir: dir, rootPath };
+}
 type Sandbox = any;
 
 export interface PrepareUploadResult {

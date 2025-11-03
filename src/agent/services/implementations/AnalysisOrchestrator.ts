@@ -1,4 +1,4 @@
-import { prepareUpload } from './ArchiveManager';
+import { prepareUpload, prepareRemoteZip } from './ArchiveManager';
 import { SimpleAnalysisAgent } from '../../core/simpleAnalysisAgent';
 
 type Sandbox = any;
@@ -9,6 +9,7 @@ export interface AnalysisRequest {
   selectedModules?: string[];
   envVars?: Record<string, string>;
   uploadFile?: File | undefined;
+  downloadUrl?: string | undefined;
 }
 
 export interface AnalysisContext {
@@ -109,6 +110,10 @@ export async function startAnalysis(
     await sandbox.setEnvVars(req.envVars);
   }
 
+  if (sandbox && req.downloadUrl && !rootPath) {
+    const prep0 = await prepareRemoteZip(sandbox, req.downloadUrl, onProgress);
+    rootPath = prep0.rootPath || prep0.baseDir;
+  }
   if (sandbox && req.uploadFile && !rootPath) {
     const prep = await prepareUpload(sandbox, req.uploadFile, onProgress);
     rootPath = prep.rootPath || prep.baseDir;
