@@ -3,6 +3,7 @@ export interface OperationOptions {
   logger: unknown;
   context: Record<string, unknown>;
   sandbox?: any;
+  progress?: (message: string) => void;
 }
 
 export abstract class AgentOperation<InputType, OutputType> {

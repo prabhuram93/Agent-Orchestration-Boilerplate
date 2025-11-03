@@ -219,8 +219,11 @@ app.post('/api/analyze', async (c) => {
           // If a repo is provided and no explicit rootPath, ensure repo exists in session; clone only if missing
           if (sandbox && repo && !rootPath) {
             const name = (repo.split('/')?.pop() || 'repo').replace(/\.git$/,'');
-            // Check if directory already exists
-            const check = await sandbox.exec(`bash -lc 'if [ -d "${name}" ]; then echo exists; else echo missing; fi'`);
+            const baseDir = '/workspace';
+            const fullPath = `${baseDir}/${name}`;
+            // Ensure baseDir exists and check if target directory already exists
+            await sandbox.exec(`bash -lc 'mkdir -p "${baseDir}"'`);
+            const check = await sandbox.exec(`bash -lc 'if [ -d "${fullPath}" ]; then echo exists; else echo missing; fi'`);
             const exists = (check && check.stdout && check.stdout.includes('exists'));
             if (!exists) {
               onProgress('Fetching repository tarball: ' + repo);
@@ -230,17 +233,17 @@ app.post('/api/analyze', async (c) => {
                 const owner = parts[0];
                 const repoName = parts[1];
                 const tarUrl = `https://api.github.com/repos/${owner}/${repoName}/tarball`;
-                await sandbox.exec(`bash -lc 'set -e; mkdir -p "${name}" && cd "${name}" && curl -L "${tarUrl}" -o repo.tar.gz && tar -xzf repo.tar.gz --strip-components=1 && rm repo.tar.gz'`);
+                await sandbox.exec(`bash -lc 'set -e; mkdir -p "${fullPath}" && cd "${fullPath}" && curl -L "${tarUrl}" -o repo.tar.gz && tar -xzf repo.tar.gz --strip-components=1 && rm repo.tar.gz'`);
                 onProgress('Fetch complete: ' + name);
               } catch (e) {
                 onProgress('Fallback to git clone due to tarball fetch error.');
-                await sandbox.exec(`bash -lc 'git clone --depth 1 --no-tags --filter=blob:none "${repo}" "${name}"'`);
+                await sandbox.exec(`bash -lc 'git clone --depth 1 --no-tags --filter=blob:none "${repo}" "${fullPath}"'`);
                 onProgress('Clone complete: ' + name);
               }
             } else {
               onProgress('Repository already present. Skipping clone.');
             }
-            rootPath = name;
+            rootPath = fullPath;
           }
 
           const agent = new SimpleAnalysisAgent();

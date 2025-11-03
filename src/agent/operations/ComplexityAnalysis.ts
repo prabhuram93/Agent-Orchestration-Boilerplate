@@ -17,6 +17,7 @@ export class ComplexityAnalysisOperation extends AgentOperation<ComplexityInputs
   async execute(inputs: ComplexityInputs, options: OperationOptions): Promise<ModuleComplexity> {
     const sandbox = options.sandbox as any | undefined;
     const rootPath = String(options.context?.rootPath || '');
+    const progress = typeof options.progress === 'function' ? options.progress : undefined;
     if (!sandbox) {
       // Fallback (no sandbox/Claude available)
       return { moduleName: inputs.modulePath };
@@ -24,6 +25,7 @@ export class ComplexityAnalysisOperation extends AgentOperation<ComplexityInputs
 
     // Health checks: CLI availability and API key presence
     try {
+      progress?.(`Claude: health check for ${inputs.modulePath}...`);
       const cliCheck = await sandbox.exec(`bash -lc 'command -v claude >/dev/null 2>&1 && echo ok || echo missing'`);
       const keyCheck = await sandbox.exec(
         `bash -lc 'cd "${rootPath}" 2>/dev/null || true; if env | grep -q "^ANTHROPIC_API_KEY="; then echo key_ok; else echo key_missing; fi'`
@@ -31,12 +33,15 @@ export class ComplexityAnalysisOperation extends AgentOperation<ComplexityInputs
       const cliOk = !!(cliCheck?.stdout || '').includes('ok');
       const keyOk = !!(keyCheck?.stdout || '').includes('key_ok');
       if (!cliOk || !keyOk) {
+        progress?.(`Claude: unhealthy (cli: ${cliOk ? 'ok' : 'missing'}, key: ${keyOk ? 'ok' : 'missing'})`);
         return {
           moduleName: inputs.modulePath,
           raw: `claude_unhealthy: { cli: ${cliOk ? 'ok' : 'missing'}, key: ${keyOk ? 'ok' : 'missing'} }`
         };
       }
+      progress?.('Claude: healthy, starting complexity analysis...');
     } catch {
+      progress?.('Claude: healthcheck error');
       return { moduleName: inputs.modulePath, raw: 'claude_healthcheck_error' };
     }
 
@@ -54,10 +59,15 @@ export class ComplexityAnalysisOperation extends AgentOperation<ComplexityInputs
     const cmd = `${cd}claude -p "${safeTask}"`;
 
     try {
+      const t0 = Date.now();
       const res = await sandbox.exec(cmd);
+      const ms = Date.now() - t0;
       const out = res?.success ? res.stdout : res?.stderr;
+      const preview = (out || '').slice(0, 200).replace(/\s+/g, ' ').trim();
+      if (preview) progress?.(`Claude: done in ${ms}ms; preview: ${preview}`);
       try {
         const parsed = JSON.parse(out);
+        progress?.(`Claude: parsed JSON (classes=${parsed.classes ?? '?'}, functions=${parsed.functions ?? '?'}, loc=${parsed.linesOfCode ?? '?'})`);
         return {
           moduleName: parsed.moduleName || inputs.modulePath,
           classes: Number(parsed.classes) || undefined,
@@ -67,9 +77,11 @@ export class ComplexityAnalysisOperation extends AgentOperation<ComplexityInputs
           raw: parsed
         };
       } catch {
+        progress?.('Claude: non-JSON output returned');
         return { moduleName: inputs.modulePath, raw: out };
       }
     } catch (e) {
+      progress?.('Claude: execution error');
       return { moduleName: inputs.modulePath };
     }
   }
