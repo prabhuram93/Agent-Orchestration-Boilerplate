@@ -16,6 +16,22 @@ const html = `<!doctype html>
     input[type=text] { width: 360px; }
     .spinner { display: none; width: 14px; height: 14px; border: 2px solid #888; border-top-color: transparent; border-radius: 50%; animation: spin 0.9s linear infinite; vertical-align: middle; margin-left: 8px; }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .actions { margin: 12px 0; display: flex; gap: 8px; align-items: center; }
+    #report { margin-top: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+    .card { border: 1px solid #222; border-radius: 8px; padding: 12px; background: #0b0b0b; color: #eaeaea; }
+    .card h4 { margin: 0 0 8px 0; font-size: 16px; }
+    .muted { color: #aaa; font-size: 12px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0 0; }
+    .badge { background: #1e1e1e; border: 1px solid #333; color: #cbd5e1; border-radius: 999px; padding: 2px 8px; font-size: 12px; }
+    .kv { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+    .kv div { background: #141414; padding: 6px 8px; border-radius: 6px; border: 1px solid #222; }
+    @media print {
+      body { margin: 0; }
+      .row, h3, pre, textarea, .actions { display: none !important; }
+      #report { margin: 0; }
+      .card { break-inside: avoid; }
+    }
   </style>
   </head>
 <body>
@@ -29,139 +45,234 @@ const html = `<!doctype html>
   <h3>Final Result</h3>
   <textarea id="result" readonly></textarea>
   <div id="modulePicker" style="display:none; margin-top: 12px;"></div>
+  <div class="actions">
+    <button id="downloadPdf" type="button">Download PDF</button>
+  </div>
+  <div id="report"></div>
   <script src="/app.js"></script>
 </body>
 </html>`;
 
 // Serve client JS separately to avoid nested template literal issues
-const clientJs = [
-  "(function(){",
-  "  console.log('app.js loaded');",
-  "  var runBtn = document.getElementById('run');",
-  "  var logEl = document.getElementById('log');",
-  "  var resultEl = document.getElementById('result');",
-  "  var spinner = document.getElementById('spinner');",
-  "  var modulePicker = document.getElementById('modulePicker');",
-  "  var currentSessionId = '';",
-  "  var currentRepo = '';",
-  "  var currentRootPath = '';",
-  "  function log(msg){ logEl.textContent += msg + '\\n'; }",
-  "  function showSpinner(show){ if (spinner) spinner.style.display = show ? 'inline-block' : 'none'; }",
-  "  function renderModulePicker(modules, sessionId, rootPath){",
-  "    if (!modulePicker) return;",
-  "    currentSessionId = sessionId;",
-  "    if (rootPath) currentRootPath = rootPath;",
-  "    modulePicker.innerHTML = '';",
-  "    var title = document.createElement('div');",
-  "    title.innerHTML = 'Select modules to analyze:';",
-  "    modulePicker.appendChild(title);",
-  "    var box = document.createElement('div');",
-  "    box.style.margin = '8px 0';",
-  "    box.style.maxHeight = '200px';",
-  "    box.style.overflow = 'auto';",
-  "    box.style.border = '1px solid #333';",
-  "    box.style.padding = '8px';",
-  "    modulePicker.appendChild(box);",
-  "    for (var i=0;i<modules.length;i++){",
-  "      var m = modules[i];",
-  "      var wrap = document.createElement('div');",
-  "      var label = document.createElement('label');",
-  "      var cb = document.createElement('input');",
-  "      cb.type = 'checkbox';",
-  "      cb.value = m;",
-  "      cb.id = 'mod_'+i;",
-  "      label.appendChild(cb);",
-  "      label.appendChild(document.createTextNode(' ' + m));",
-  "      wrap.appendChild(label);",
-  "      box.appendChild(wrap);",
-  "    }",
-  "    var btn = document.createElement('button');",
-  "    btn.id = 'submitModules';",
-  "    btn.textContent = 'Analyze Selected';",
-  "    modulePicker.appendChild(btn);",
-  "    modulePicker.style.display = 'block';",
-  "    var btn = document.getElementById('submitModules');",
-  "    if (btn) btn.onclick = function(){",
-  "      var inputs = modulePicker.querySelectorAll('input[type=checkbox]:checked');",
-  "      var selected = [];",
-  "      for (var j=0;j<inputs.length;j++){ selected.push(inputs[j].value); }",
-  "      if (selected.length === 0){ log('No modules selected.'); return; }",
-  "      modulePicker.style.display = 'none';",
-  "      startStream({ repo: currentRepo, sessionId: currentSessionId, selectedModules: selected, rootPath: currentRootPath });",
-  "    };",
-  "  }",
-  "  function startStream(body){",
-  "    showSpinner(true);",
-  "    fetch('/api/analyze', {",
-  "      method: 'POST',",
-  "      headers: { 'content-type': 'application/json' },",
-  "      body: JSON.stringify(body)",
-  "    }).then(function(res){",
-  "      if (!res.ok) {",
-  "        return res.text().then(function(text){",
-  "          log('Request failed: ' + res.status + ' ' + res.statusText);",
-  "          if (text) log(text);",
-  "          throw new Error('HTTP ' + res.status);",
-  "        });",
-  "      }",
-  "      if (!res.body) { log('No response body (stream not available).'); return; }",
-  "      var reader = res.body.getReader();",
-  "      var decoder = new TextDecoder();",
-  "      var buffer = '';",
-  "      function pump(){",
-  "        return reader.read().then(function(chunk){",
-  "          if (chunk.done) return;",
-  "          buffer += decoder.decode(chunk.value, { stream: true });",
-  "          var lines = buffer.split('\\n');",
-  "          buffer = lines.pop() || '';",
-  "          for (var i=0; i<lines.length; i++){",
-  "            var line = lines[i];",
-  "            if (!line.trim()) continue;",
-  "            try {",
-  "              var obj = JSON.parse(line);",
-  "              if (obj.type === 'progress') log(obj.message);",
-  "              else if (obj.type === 'result') resultEl.value = JSON.stringify(obj.data, null, 2);",
-  "              else if (obj.type === 'error') log('Error: ' + obj.message);",
-  "              else if (obj.type === 'select-modules'){",
-  "                if (obj.sessionId) currentSessionId = obj.sessionId;",
-  "                if (obj.rootPath) currentRootPath = obj.rootPath;",
-  "                renderModulePicker(obj.modules || [], obj.sessionId || currentSessionId, obj.rootPath || currentRootPath);",
-  "              }",
-  "            } catch (e) { console.error('Failed to parse line', line, e); }",
-  "          }",
-  "          return pump();",
-  "        });",
-  "      }",
-  "      return pump();",
-  "    }).catch(function(e){",
-  "      console.error(e);",
-  "      log('Request error: ' + (e && e.message ? e.message : String(e)));",
-  "    }).finally(function(){",
-  "      showSpinner(false);",
-  "    });",
-  "  }",
-  "  if (!runBtn) { console.error('Analyze button not found'); return; }",
-  "  runBtn.addEventListener('click', function(e){",
-  "    e.preventDefault();",
-  "    logEl.textContent = '';",
-  "    resultEl.value = '';",
-  "    modulePicker.style.display = 'none';",
-  "    currentRepo = (document.getElementById('repoUrl') && document.getElementById('repoUrl').value) || '';",
-  "    startStream({ repo: currentRepo });",
-  "  });",
-  "})();"
-].join('\n');
+const clientJs = `
+(function(){
+  console.log('app.js loaded');
+  var runBtn = document.getElementById('run');
+  var logEl = document.getElementById('log');
+  var resultEl = document.getElementById('result');
+  var spinner = document.getElementById('spinner');
+  var modulePicker = document.getElementById('modulePicker');
+  var reportEl = document.getElementById('report');
+  var downloadBtn = document.getElementById('downloadPdf');
+  var currentSessionId = '';
+  var currentRepo = '';
+  var currentRootPath = '';
+
+  function log(msg){ logEl.textContent += msg + '\\n'; }
+  function showSpinner(show){ if (spinner) spinner.style.display = show ? 'inline-block' : 'none'; }
+
+  function renderReport(data){
+    if (!reportEl) return;
+    try {
+      // Clear report
+      reportEl.innerHTML = '';
+      var results = Array.isArray(data && data.results) ? data.results : [];
+
+      // Grid container
+      var grid = document.createElement('div');
+      grid.className = 'grid';
+
+      for (var i=0;i<results.length;i++){
+        var r = results[i] || {};
+        var mod = r.modulePath || (r.logic && r.logic.module) || 'Unknown';
+        var logic = r.logic || {};
+        var cx = r.complexity || {};
+
+        var card = document.createElement('div');
+        card.className = 'card';
+
+        var h4 = document.createElement('h4');
+        h4.textContent = String(mod);
+        card.appendChild(h4);
+
+        if (logic.summary){
+          var summary = document.createElement('div');
+          summary.className = 'muted';
+          summary.textContent = String(logic.summary);
+          card.appendChild(summary);
+        }
+
+        var kv = document.createElement('div');
+        kv.className = 'kv';
+        var addKv = function(label, value){
+          if (value != null){
+            var box = document.createElement('div');
+            box.innerHTML = label + ': <strong>' + String(value) + '</strong>';
+            kv.appendChild(box);
+          }
+        };
+        addKv('LOC', cx.linesOfCode);
+        addKv('Classes', cx.classes);
+        addKv('Functions', cx.functions);
+        addKv('CC', cx.cyclomaticComplexity);
+        card.appendChild(kv);
+
+        var sections = [
+          ['Entities', logic.entities],
+          ['Services', logic.services],
+          ['Controllers', logic.controllers],
+          ['Workflows', logic.workflows]
+        ];
+        for (var s=0; s<sections.length; s++){
+          var label = sections[s][0]; var arr = sections[s][1];
+          if (Array.isArray(arr) && arr.length){
+            var muted = document.createElement('div');
+            muted.className = 'muted';
+            muted.style.marginTop = '6px';
+            muted.textContent = String(label);
+            card.appendChild(muted);
+
+            var badges = document.createElement('div');
+            badges.className = 'badges';
+            for (var j=0; j<arr.length; j++){
+              var badge = document.createElement('span');
+              badge.className = 'badge';
+              badge.textContent = String(arr[j]);
+              badges.appendChild(badge);
+            }
+            card.appendChild(badges);
+          }
+        }
+
+        grid.appendChild(card);
+      }
+
+      reportEl.appendChild(grid);
+    } catch (e) {
+      console.error('renderReport error', e);
+    }
+  }
+
+  if (downloadBtn) downloadBtn.addEventListener('click', function(){ window.print(); });
+
+  function renderModulePicker(modules, sessionId, rootPath){
+    if (!modulePicker) return;
+    currentSessionId = sessionId;
+    if (rootPath) currentRootPath = rootPath;
+    modulePicker.innerHTML = '';
+    var title = document.createElement('div');
+    title.innerHTML = 'Select modules to analyze:';
+    modulePicker.appendChild(title);
+    var box = document.createElement('div');
+    box.style.margin = '8px 0';
+    box.style.maxHeight = '200px';
+    box.style.overflow = 'auto';
+    box.style.border = '1px solid #333';
+    box.style.padding = '8px';
+    modulePicker.appendChild(box);
+    for (var i=0;i<modules.length;i++){
+      var m = modules[i];
+      var wrap = document.createElement('div');
+      var label = document.createElement('label');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = m;
+      cb.id = 'mod_'+i;
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(' ' + m));
+      wrap.appendChild(label);
+      box.appendChild(wrap);
+    }
+    var btn = document.createElement('button');
+    btn.id = 'submitModules';
+    btn.textContent = 'Analyze Selected';
+    modulePicker.appendChild(btn);
+    modulePicker.style.display = 'block';
+    var submitBtn = document.getElementById('submitModules');
+    if (submitBtn) submitBtn.onclick = function(){
+      var inputs = modulePicker.querySelectorAll('input[type=checkbox]:checked');
+      var selected = [];
+      for (var j=0;j<inputs.length;j++){ selected.push(inputs[j].value); }
+      if (selected.length === 0){ log('No modules selected.'); return; }
+      modulePicker.style.display = 'none';
+      startStream({ repo: currentRepo, sessionId: currentSessionId, selectedModules: selected, rootPath: currentRootPath });
+    };
+  }
+
+  function startStream(body){
+    showSpinner(true);
+    fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function(res){
+      if (!res.ok) {
+        return res.text().then(function(text){
+          log('Request failed: ' + res.status + ' ' + res.statusText);
+          if (text) log(text);
+          throw new Error('HTTP ' + res.status);
+        });
+      }
+      if (!res.body) { log('No response body (stream not available).'); return; }
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+      function pump(){
+        return reader.read().then(function(chunk){
+          if (chunk.done) return;
+          buffer += decoder.decode(chunk.value, { stream: true });
+          var lines = buffer.split('\\n');
+          buffer = lines.pop() || '';
+          for (var i=0; i<lines.length; i++){
+            var line = lines[i];
+            if (!line.trim()) continue;
+            try {
+              var obj = JSON.parse(line);
+              if (obj.type === 'progress') log(obj.message);
+              else if (obj.type === 'result') {
+                resultEl.value = JSON.stringify(obj.data, null, 2);
+                renderReport(obj.data);
+              } else if (obj.type === 'error') log('Error: ' + obj.message);
+              else if (obj.type === 'select-modules'){
+                if (obj.sessionId) currentSessionId = obj.sessionId;
+                if (obj.rootPath) currentRootPath = obj.rootPath;
+                renderModulePicker(obj.modules || [], obj.sessionId || currentSessionId, obj.rootPath || currentRootPath);
+              }
+            } catch (e) { console.error('Failed to parse line', line, e); }
+          }
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function(e){
+      console.error(e);
+      log('Request error: ' + (e && e.message ? e.message : String(e)));
+    }).finally(function(){
+      showSpinner(false);
+    });
+  }
+
+  if (!runBtn) { console.error('Analyze button not found'); return; }
+  runBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    logEl.textContent = '';
+    resultEl.value = '';
+    if (reportEl) reportEl.innerHTML = '';
+    modulePicker.style.display = 'none';
+    currentRepo = (document.getElementById('repoUrl') && document.getElementById('repoUrl').value) || '';
+    startStream({ repo: currentRepo });
+  });
+})();
+`;
+// Inject script inline to avoid routing/caching edge cases
+const htmlWithScript = html.replace('<script src="/app.js"></script>', `<script>${clientJs}</script>`);
 
 // --- Minimal boilerplate agent (trimmed imports kept local) ---
 import { SimpleAnalysisAgent } from './agent/core/simpleAnalysisAgent';
 
 const app = new Hono();
 
-app.get('/', (c) => c.html(html));
-
-app.get('/app.js', (c) => new Response(clientJs, {
-  headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-cache' }
-}));
+app.get('/', (c) => c.html(htmlWithScript));
 
 app.get('/favicon.ico', () => new Response(null, { status: 204 }));
 
