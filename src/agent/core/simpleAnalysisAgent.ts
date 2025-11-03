@@ -7,6 +7,7 @@ import { BusinessLogicExtractionOperation } from '../operations/BusinessLogicExt
 import { ComplexityAnalysisOperation } from '../operations/ComplexityAnalysis';
 import { ReportingOperation } from '../operations/Reporting';
 import type { OperationOptions } from '../operations/common';
+import { getInitialState } from './state';
 
 export interface AnalysisState {
   initialized: boolean;
@@ -36,12 +37,26 @@ export class SimpleAnalysisAgent extends Agent<unknown, AnalysisState> {
     reporting: new ReportingOperation()
   };
 
+  // Guarded state setter to avoid silent failures
+  protected setState(state: AnalysisState): void {
+    try {
+      super.setState(state);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.initArgs?.onProgress?.('State update error: ' + message);
+    }
+  }
+
   async initialize(args: AgentInitArgs): Promise<AnalysisState> {
     this.initArgs = args;
     if (args.sandbox) {
       this.fileManager = new FileManager(args.sandbox as any);
     }
-    this.setState({ initialized: true, currentStep: 'initialized' });
+    // Seed initial state immutably
+    if (!this.state?.initialized) {
+      this.setState(getInitialState());
+    }
+    this.stateManager.batchUpdate({ initialized: true, currentStep: 'initialized' });
     args.onProgress?.('Agent initialized');
     return this.state;
   }
