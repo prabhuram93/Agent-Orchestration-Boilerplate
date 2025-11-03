@@ -1,0 +1,30 @@
+/* App-specific styles for React Spectrum components */
+#root {
+  width: 100%;
+  height: 100vh;
+}
+
+/* Custom overrides if needed */
+code {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Print styles for PDF export */
+@media print {
+  body {
+    margin: 0;
+  }
+  
+  /* Hide UI elements when printing */
+  h1, h3, button, textarea, pre {
+    display: none !important;
+  }
+  
+  /* Only show the report grid */
+  [role="region"] {
+    break-inside: avoid;
+  }
+}

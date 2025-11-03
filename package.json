@@ -4,15 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx wrangler dev",
-    "deploy": "npx wrangler deploy"
+    "dev:worker": "cd packages/worker && npm run dev",
+    "dev:web": "cd packages/web && npm run dev",
+    "install:all": "cd packages/worker && npm install && cd ../web && npm install"
   },
   "dependencies": {
-    "hono": "^4.4.10",
-    "@cloudflare/sandbox": "0.4.14"
   },
   "devDependencies": {
-    "typescript": "^5.6.3",
-    "wrangler": "^4.45.3"
   }
 }

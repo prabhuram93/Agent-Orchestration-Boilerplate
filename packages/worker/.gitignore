@@ -8,10 +8,8 @@ dist/
 
 # Env/config
 .env
-.env.local
-.env.*.local
+.env.*
 .dev.vars
-!.env.example
 
 # Logs
 npm-debug.log*
