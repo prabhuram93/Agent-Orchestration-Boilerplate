@@ -207,9 +207,20 @@ app.post('/api/analyze', async (c) => {
             const check = await sandbox.exec(`bash -lc 'if [ -d "${name}" ]; then echo exists; else echo missing; fi'`);
             const exists = (check && check.stdout && check.stdout.includes('exists'));
             if (!exists) {
-              onProgress('Cloning repository: ' + repo);
-              await sandbox.gitCheckout(repo, { targetDir: name });
-              onProgress('Clone complete: ' + name);
+              onProgress('Fetching repository tarball: ' + repo);
+              try {
+                const u = new URL(repo);
+                const parts = u.pathname.replace(/\.git$/,'').split('/').filter(Boolean);
+                const owner = parts[0];
+                const repoName = parts[1];
+                const tarUrl = `https://api.github.com/repos/${owner}/${repoName}/tarball`;
+                await sandbox.exec(`bash -lc 'set -e; mkdir -p "${name}" && cd "${name}" && curl -L "${tarUrl}" -o repo.tar.gz && tar -xzf repo.tar.gz --strip-components=1 && rm repo.tar.gz'`);
+                onProgress('Fetch complete: ' + name);
+              } catch (e) {
+                onProgress('Fallback to git clone due to tarball fetch error.');
+                await sandbox.exec(`bash -lc 'git clone --depth 1 --no-tags --filter=blob:none "${repo}" "${name}"'`);
+                onProgress('Clone complete: ' + name);
+              }
             } else {
               onProgress('Repository already present. Skipping clone.');
             }

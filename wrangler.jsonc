@@ -27,6 +27,6 @@
       "tag": "v1"
     }
   ],
-  "observability": { "enabled": false }
+  "observability": { "enabled": true }
 }
 
