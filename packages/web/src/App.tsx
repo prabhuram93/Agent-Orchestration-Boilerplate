@@ -249,25 +249,30 @@ function App() {
           paddingX="size-300"
           paddingY="size-200"
         >
-          <Flex direction="row" justifyContent="end" alignItems="center" gap="size-200">
-            <MenuTrigger>
-              <ActionButton isQuiet aria-label="Theme">
-                <Light />
-              </ActionButton>
-              <Menu
-                selectedKeys={[themeMode]}
-                selectionMode="single"
-                onSelectionChange={(keys) => {
-                  const selected = Array.from(keys)[0] as ThemeMode
-                  setThemeMode(selected)
-                }}
-              >
-                <Item key="light">Light</Item>
-                <Item key="dark">Dark</Item>
-                <Item key="system">System</Item>
-              </Menu>
-            </MenuTrigger>
-            <Button variant="accent">Sign In</Button>
+          <Flex direction="row" justifyContent="space-between" alignItems="center" gap="size-200">
+            <Heading level={1} margin={0} UNSAFE_style={{ fontSize: '1.5rem' }}>
+              Magento Analysis Boilerplate
+            </Heading>
+            <Flex direction="row" alignItems="center" gap="size-200">
+              <MenuTrigger>
+                <ActionButton isQuiet aria-label="Theme">
+                  <Light />
+                </ActionButton>
+                <Menu
+                  selectedKeys={[themeMode]}
+                  selectionMode="single"
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as ThemeMode
+                    setThemeMode(selected)
+                  }}
+                >
+                  <Item key="light">Light</Item>
+                  <Item key="dark">Dark</Item>
+                  <Item key="system">System</Item>
+                </Menu>
+              </MenuTrigger>
+              <Button variant="accent">Sign In</Button>
+            </Flex>
           </Flex>
         </View>
 
@@ -278,10 +283,6 @@ function App() {
           flex={1}
           UNSAFE_style={{ padding: '1.5rem', overflow: 'auto' }}
         >
-          <View>
-            <Heading level={1}>Magento Analysis Boilerplate</Heading>
-          </View>
-
       <Flex direction="row" gap="size-200" alignItems="end">
         <TextField
           label="Repo URL"
@@ -336,16 +337,20 @@ function App() {
 
       {reportData && (
         <View>
-          <Flex direction="row" gap="size-200" alignItems="center" marginBottom="size-200">
+          <Flex direction="row" justifyContent="space-between" alignItems="center" marginBottom="size-200">
+            <Heading level={3} margin={0}>Analysis Report</Heading>
             <Button variant="secondary" onPress={handleDownloadPdf}>
               Download PDF
             </Button>
           </Flex>
           <Divider size="M" marginBottom="size-300" />
           <Grid
-            columns={repeat('auto-fill', 'size-3600')}
+            columns={repeat('auto-fill', 'minmax(700px, 1fr)')}
             autoRows="auto"
-            gap="size-200"
+            gap="size-300"
+            UNSAFE_style={{ 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(700px, 1fr))',
+            }}
           >
             {reportData.results?.map((module, idx) => {
               const modulePath = module.modulePath || module.logic?.module || 'Unknown'
@@ -353,116 +358,366 @@ function App() {
               const complexity = module.complexity || {}
 
               return (
-                <Well key={idx}>
-                  <Flex direction="column" gap="size-100">
-                    <Heading level={4} margin={0}>{modulePath}</Heading>
+                <View 
+                  key={idx}
+                  borderWidth="thin"
+                  borderColor="gray-400"
+                  borderRadius="large"
+                  padding="size-300"
+                  backgroundColor="gray-50"
+                  UNSAFE_style={{
+                    boxShadow: effectiveTheme === 'dark' 
+                      ? '0 2px 8px rgba(0,0,0,0.4)' 
+                      : '0 2px 8px rgba(0,0,0,0.1)',
+                    transition: 'all 0.2s ease',
+                    cursor: 'default',
+                  }}
+                  UNSAFE_className="module-card"
+                >
+                  <Flex direction="column" gap="size-200">
+                    {/* Card Header */}
+                    <View paddingBottom="size-150" borderBottomWidth="thin" borderBottomColor="gray-300">
+                      <Heading level={4} margin={0} UNSAFE_style={{ 
+                        fontSize: '1.125rem',
+                        fontWeight: 600,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {modulePath}
+                      </Heading>
+                    </View>
                     
+                    {/* Summary Section */}
                     {logic.summary && (
-                      <Text UNSAFE_style={{ fontSize: '0.875rem', color: '#aaa' }}>
-                        {logic.summary}
-                      </Text>
-                    )}
-
-                    <Flex direction="row" gap="size-200" wrap marginTop="size-100">
-                      {complexity.linesOfCode !== undefined && (
-                        <View padding="size-100" backgroundColor="gray-100" borderRadius="medium">
-                          <Text>LOC: <strong>{complexity.linesOfCode}</strong></Text>
-                        </View>
-                      )}
-                      {complexity.classes !== undefined && (
-                        <View padding="size-100" backgroundColor="gray-100" borderRadius="medium">
-                          <Text>Classes: <strong>{complexity.classes}</strong></Text>
-                        </View>
-                      )}
-                      {complexity.functions !== undefined && (
-                        <View padding="size-100" backgroundColor="gray-100" borderRadius="medium">
-                          <Text>Functions: <strong>{complexity.functions}</strong></Text>
-                        </View>
-                      )}
-                      {complexity.cyclomaticComplexity !== undefined && (
-                        <View padding="size-100" backgroundColor="gray-100" borderRadius="medium">
-                          <Text>CC: <strong>{complexity.cyclomaticComplexity}</strong></Text>
-                        </View>
-                      )}
-                    </Flex>
-
-                    {logic.entities && logic.entities.length > 0 && (
-                      <View marginTop="size-100">
-                        <Text UNSAFE_style={{ fontSize: '0.875rem', color: '#aaa' }}>Entities</Text>
-                        <Flex direction="row" gap="size-100" wrap marginTop="size-50">
-                          {logic.entities.map((entity, i) => (
-                            <View
-                              key={i}
-                              paddingX="size-100"
-                              paddingY="size-50"
-                              backgroundColor="gray-200"
-                              borderRadius="large"
-                            >
-                              <Text UNSAFE_style={{ fontSize: '0.75rem' }}>{entity}</Text>
-                            </View>
-                          ))}
-                        </Flex>
+                      <View paddingY="size-100">
+                        <Text UNSAFE_style={{ 
+                          fontSize: '0.875rem', 
+                          lineHeight: '1.5',
+                          color: effectiveTheme === 'dark' ? '#c4c4c4' : '#666'
+                        }}>
+                          {logic.summary}
+                        </Text>
                       </View>
                     )}
 
-                    {logic.services && logic.services.length > 0 && (
-                      <View marginTop="size-100">
-                        <Text UNSAFE_style={{ fontSize: '0.875rem', color: '#aaa' }}>Services</Text>
-                        <Flex direction="row" gap="size-100" wrap marginTop="size-50">
-                          {logic.services.map((service, i) => (
-                            <View
-                              key={i}
-                              paddingX="size-100"
-                              paddingY="size-50"
-                              backgroundColor="gray-200"
-                              borderRadius="large"
+                    {/* Metrics Section */}
+                    {(complexity.linesOfCode !== undefined || 
+                      complexity.classes !== undefined || 
+                      complexity.functions !== undefined || 
+                      complexity.cyclomaticComplexity !== undefined) && (
+                      <View>
+                        <Text UNSAFE_style={{ 
+                          fontSize: '0.75rem', 
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          color: effectiveTheme === 'dark' ? '#999' : '#666',
+                          marginBottom: '0.5rem'
+                        }}>
+                          Complexity Metrics
+                        </Text>
+                        <Grid 
+                          columns={repeat('auto-fit', 'minmax(80px, 1fr)')} 
+                          gap="size-150"
+                        >
+                          {complexity.linesOfCode !== undefined && (
+                            <View 
+                              padding="size-150" 
+                              backgroundColor="gray-200" 
+                              borderRadius="medium"
+                              UNSAFE_style={{ textAlign: 'center' }}
                             >
-                              <Text UNSAFE_style={{ fontSize: '0.75rem' }}>{service}</Text>
+                              <Text UNSAFE_style={{ 
+                                fontSize: '0.7rem', 
+                                color: effectiveTheme === 'dark' ? '#999' : '#666',
+                                display: 'block',
+                                marginBottom: '0.25rem'
+                              }}>
+                                LOC
+                              </Text>
+                              <Text UNSAFE_style={{ 
+                                fontSize: '1.125rem', 
+                                fontWeight: 700,
+                                display: 'block'
+                              }}>
+                                {complexity.linesOfCode}
+                              </Text>
                             </View>
-                          ))}
-                        </Flex>
+                          )}
+                          {complexity.classes !== undefined && (
+                            <View 
+                              padding="size-150" 
+                              backgroundColor="gray-200" 
+                              borderRadius="medium"
+                              UNSAFE_style={{ textAlign: 'center' }}
+                            >
+                              <Text UNSAFE_style={{ 
+                                fontSize: '0.7rem', 
+                                color: effectiveTheme === 'dark' ? '#999' : '#666',
+                                display: 'block',
+                                marginBottom: '0.25rem'
+                              }}>
+                                Classes
+                              </Text>
+                              <Text UNSAFE_style={{ 
+                                fontSize: '1.125rem', 
+                                fontWeight: 700,
+                                display: 'block'
+                              }}>
+                                {complexity.classes}
+                              </Text>
+                            </View>
+                          )}
+                          {complexity.functions !== undefined && (
+                            <View 
+                              padding="size-150" 
+                              backgroundColor="gray-200" 
+                              borderRadius="medium"
+                              UNSAFE_style={{ textAlign: 'center' }}
+                            >
+                              <Text UNSAFE_style={{ 
+                                fontSize: '0.7rem', 
+                                color: effectiveTheme === 'dark' ? '#999' : '#666',
+                                display: 'block',
+                                marginBottom: '0.25rem'
+                              }}>
+                                Functions
+                              </Text>
+                              <Text UNSAFE_style={{ 
+                                fontSize: '1.125rem', 
+                                fontWeight: 700,
+                                display: 'block'
+                              }}>
+                                {complexity.functions}
+                              </Text>
+                            </View>
+                          )}
+                          {complexity.cyclomaticComplexity !== undefined && (
+                            <View 
+                              padding="size-150" 
+                              backgroundColor="gray-200" 
+                              borderRadius="medium"
+                              UNSAFE_style={{ textAlign: 'center' }}
+                            >
+                              <Text UNSAFE_style={{ 
+                                fontSize: '0.7rem', 
+                                color: effectiveTheme === 'dark' ? '#999' : '#666',
+                                display: 'block',
+                                marginBottom: '0.25rem'
+                              }}>
+                                CC
+                              </Text>
+                              <Text UNSAFE_style={{ 
+                                fontSize: '1.125rem', 
+                                fontWeight: 700,
+                                display: 'block'
+                              }}>
+                                {complexity.cyclomaticComplexity}
+                              </Text>
+                            </View>
+                          )}
+                        </Grid>
                       </View>
                     )}
 
-                    {logic.controllers && logic.controllers.length > 0 && (
+                    {/* Components Section */}
+                    {((logic.entities && logic.entities.length > 0) ||
+                      (logic.services && logic.services.length > 0) ||
+                      (logic.controllers && logic.controllers.length > 0) ||
+                      (logic.workflows && logic.workflows.length > 0)) && (
                       <View marginTop="size-100">
-                        <Text UNSAFE_style={{ fontSize: '0.875rem', color: '#aaa' }}>Controllers</Text>
-                        <Flex direction="row" gap="size-100" wrap marginTop="size-50">
-                          {logic.controllers.map((controller, i) => (
-                            <View
-                              key={i}
-                              paddingX="size-100"
-                              paddingY="size-50"
-                              backgroundColor="gray-200"
-                              borderRadius="large"
-                            >
-                              <Text UNSAFE_style={{ fontSize: '0.75rem' }}>{controller}</Text>
+                        <Text UNSAFE_style={{ 
+                          fontSize: '0.75rem', 
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          color: effectiveTheme === 'dark' ? '#999' : '#666',
+                          marginBottom: '0.75rem',
+                          display: 'block'
+                        }}>
+                          Components
+                        </Text>
+                        <Flex direction="column" gap="size-150">
+                          {logic.entities && logic.entities.length > 0 && (
+                            <View>
+                              <Text UNSAFE_style={{ 
+                                fontSize: '0.875rem', 
+                                fontWeight: 600,
+                                marginBottom: '0.5rem',
+                                display: 'block'
+                              }}>
+                                Entities ({logic.entities.length})
+                              </Text>
+                              <Flex direction="row" gap="size-125" wrap>
+                                {logic.entities.map((entity, i) => (
+                                  <View
+                                    key={i}
+                                    paddingX="size-200"
+                                    paddingY="size-100"
+                                    borderRadius="large"
+                                    UNSAFE_style={{
+                                      backgroundColor: effectiveTheme === 'dark' 
+                                        ? '#1e3a8a' 
+                                        : '#dbeafe',
+                                      border: effectiveTheme === 'dark' 
+                                        ? '1px solid #3b82f6' 
+                                        : '1px solid #93c5fd',
+                                      minHeight: '28px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <Text UNSAFE_style={{ 
+                                      fontSize: '0.875rem', 
+                                      fontWeight: 500,
+                                      color: effectiveTheme === 'dark' ? '#bfdbfe' : '#1e40af',
+                                      lineHeight: '1.4',
+                                      wordBreak: 'break-word',
+                                    }}>
+                                      {entity}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </Flex>
                             </View>
-                          ))}
-                        </Flex>
-                      </View>
-                    )}
+                          )}
 
-                    {logic.workflows && logic.workflows.length > 0 && (
-                      <View marginTop="size-100">
-                        <Text UNSAFE_style={{ fontSize: '0.875rem', color: '#aaa' }}>Workflows</Text>
-                        <Flex direction="row" gap="size-100" wrap marginTop="size-50">
-                          {logic.workflows.map((workflow, i) => (
-                            <View
-                              key={i}
-                              paddingX="size-100"
-                              paddingY="size-50"
-                              backgroundColor="gray-200"
-                              borderRadius="large"
-                            >
-                              <Text UNSAFE_style={{ fontSize: '0.75rem' }}>{workflow}</Text>
+                          {logic.services && logic.services.length > 0 && (
+                            <View>
+                              <Text UNSAFE_style={{ 
+                                fontSize: '0.875rem', 
+                                fontWeight: 600,
+                                marginBottom: '0.5rem',
+                                display: 'block'
+                              }}>
+                                Services ({logic.services.length})
+                              </Text>
+                              <Flex direction="row" gap="size-125" wrap>
+                                {logic.services.map((service, i) => (
+                                  <View
+                                    key={i}
+                                    paddingX="size-200"
+                                    paddingY="size-100"
+                                    borderRadius="large"
+                                    UNSAFE_style={{
+                                      backgroundColor: effectiveTheme === 'dark' 
+                                        ? '#064e3b' 
+                                        : '#d1fae5',
+                                      border: effectiveTheme === 'dark' 
+                                        ? '1px solid #10b981' 
+                                        : '1px solid #6ee7b7',
+                                      minHeight: '28px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <Text UNSAFE_style={{ 
+                                      fontSize: '0.875rem', 
+                                      fontWeight: 500,
+                                      color: effectiveTheme === 'dark' ? '#a7f3d0' : '#065f46',
+                                      lineHeight: '1.4',
+                                      wordBreak: 'break-word',
+                                    }}>
+                                      {service}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </Flex>
                             </View>
-                          ))}
+                          )}
+
+                          {logic.controllers && logic.controllers.length > 0 && (
+                            <View>
+                              <Text UNSAFE_style={{ 
+                                fontSize: '0.875rem', 
+                                fontWeight: 600,
+                                marginBottom: '0.5rem',
+                                display: 'block'
+                              }}>
+                                Controllers ({logic.controllers.length})
+                              </Text>
+                              <Flex direction="row" gap="size-125" wrap>
+                                {logic.controllers.map((controller, i) => (
+                                  <View
+                                    key={i}
+                                    paddingX="size-200"
+                                    paddingY="size-100"
+                                    borderRadius="large"
+                                    UNSAFE_style={{
+                                      backgroundColor: effectiveTheme === 'dark' 
+                                        ? '#7c2d12' 
+                                        : '#fed7aa',
+                                      border: effectiveTheme === 'dark' 
+                                        ? '1px solid #f97316' 
+                                        : '1px solid #fdba74',
+                                      minHeight: '28px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <Text UNSAFE_style={{ 
+                                      fontSize: '0.875rem', 
+                                      fontWeight: 500,
+                                      color: effectiveTheme === 'dark' ? '#fed7aa' : '#7c2d12',
+                                      lineHeight: '1.4',
+                                      wordBreak: 'break-word',
+                                    }}>
+                                      {controller}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </Flex>
+                            </View>
+                          )}
+
+                          {logic.workflows && logic.workflows.length > 0 && (
+                            <View>
+                              <Text UNSAFE_style={{ 
+                                fontSize: '0.875rem', 
+                                fontWeight: 600,
+                                marginBottom: '0.5rem',
+                                display: 'block'
+                              }}>
+                                Workflows ({logic.workflows.length})
+                              </Text>
+                              <Flex direction="row" gap="size-125" wrap>
+                                {logic.workflows.map((workflow, i) => (
+                                  <View
+                                    key={i}
+                                    paddingX="size-200"
+                                    paddingY="size-100"
+                                    borderRadius="large"
+                                    UNSAFE_style={{
+                                      backgroundColor: effectiveTheme === 'dark' 
+                                        ? '#581c87' 
+                                        : '#e9d5ff',
+                                      border: effectiveTheme === 'dark' 
+                                        ? '1px solid #a855f7' 
+                                        : '1px solid #c084fc',
+                                      minHeight: '28px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <Text UNSAFE_style={{ 
+                                      fontSize: '0.875rem', 
+                                      fontWeight: 500,
+                                      color: effectiveTheme === 'dark' ? '#e9d5ff' : '#581c87',
+                                      lineHeight: '1.4',
+                                      wordBreak: 'break-word',
+                                    }}>
+                                      {workflow}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </Flex>
+                            </View>
+                          )}
                         </Flex>
                       </View>
                     )}
                   </Flex>
-                </Well>
+                </View>
               )
             })}
           </Grid>

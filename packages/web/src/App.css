@@ -12,6 +12,19 @@ code {
   background-color: rgba(0, 0, 0, 0.1);
 }
 
+/* Module Card Hover Effects */
+.module-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Responsive styles for module cards */
+@media (max-width: 768px) {
+  /* Single column layout on mobile/tablet */
+  .module-card {
+    min-width: 100% !important;
+  }
+}
+
 /* Print styles for PDF export */
 @media print {
   body {
