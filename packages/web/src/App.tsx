@@ -225,7 +225,7 @@ function App() {
             effectiveTheme={effectiveTheme}
           />
 
-          <ResultDisplay result={result} />
+          <ResultDisplay result={result} effectiveTheme={effectiveTheme} />
 
           {reportData && (
             <AnalysisReport
