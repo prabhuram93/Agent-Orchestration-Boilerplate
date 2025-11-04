@@ -10,7 +10,6 @@ dist/
 .env
 .env.*
 .dev.vars
-!.env.example
 
 # Logs
 npm-debug.log*

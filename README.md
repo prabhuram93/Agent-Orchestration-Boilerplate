@@ -1,11 +1,15 @@
 # Magento 2 Analysis Boilerplate
 
-A minimal Cloudflare Worker + Sandbox app that:
-- Clones or accepts a Magento 2 codebase
-- Extracts business-logic signals and basic complexity
-- Streams progress to a simple UI with module selection and a printable report
-- Supports ZIP uploads directly (local) or via Cloudflare R2 (remote)
-- Works with Anthropic Claude via Bedrock (recommended) or Anthropic API key
+A monorepo with two packages:
+- **`packages/worker`** — Cloudflare Worker backend with Anthropic Claude agent orchestration
+- **`packages/web`** — React frontend with Vite, deployed as a Cloudflare Pages app
+
+Together they:
+- Clone or accept a Magento 2 codebase
+- Extract business-logic signals and basic complexity
+- Stream progress to a simple UI with module selection and a printable report
+- Support ZIP uploads directly (local) or via Cloudflare R2 (remote)
+- Work with Anthropic Claude via Bedrock (recommended) or Anthropic API key
 
 ## Prerequisites
 - Node.js 18+
@@ -14,27 +18,38 @@ A minimal Cloudflare Worker + Sandbox app that:
 - (Recommended for cloud) Cloudflare R2 bucket
 
 ## Local Development
-1) Install deps
+
+### 1) Install dependencies
+Install dependencies for both packages from the root:
 ```bash
-npm install
+npm run install:all
 ```
 
-2) Create `.dev.vars` with your secrets (see Environment below). Example (Bedrock):
+### 2) Configure environment variables
+Create `packages/worker/.dev.vars` with your secrets (see Environment section below).
+
+Example (Bedrock):
 ```bash
 AWS_BEARER_TOKEN_BEDROCK=YOUR_TOKEN
 ```
 
-3) Run dev server
+### 3) Run the development servers
+You need to run both the worker and web packages. Use two terminal windows:
+
+**Terminal 1 - Backend Worker:**
 ```bash
-npm run dev
+npm run dev:worker
 ```
+This starts the worker at `http://localhost:8787`
 
-4) Open
+**Terminal 2 - Frontend:**
+```bash
+npm run dev:web
 ```
-http://localhost:8787
-```
+This starts the web UI (typically at `http://localhost:5173`)
 
-5) In the UI, either:
+### 4) Use the application
+Open the web UI in your browser and either:
 - Paste a repo URL (e.g., https://github.com/magento/magento2), or
 - Choose a ZIP file (mutually exclusive)
 
@@ -46,7 +61,7 @@ Notes (local):
 When running in Cloudflare (remote dev or deployed), the app can upload ZIPs to R2 and have the sandbox curl the file from a public URL.
 
 ### Wrangler config
-Add these to `wrangler.jsonc` (or your env section):
+Add these to `packages/worker/wrangler.jsonc`:
 ```jsonc
 {
   // ... your existing config ...
@@ -65,25 +80,29 @@ Add these to `wrangler.jsonc` (or your env section):
 }
 ```
 
-Run remote dev:
+Run worker in remote mode:
 ```bash
-wrangler dev --remote
+cd packages/worker && wrangler dev --remote
 ```
 
-Or deploy:
+Deploy both packages:
 ```bash
-npm run deploy
+# Deploy worker
+cd packages/worker && npm run deploy
+
+# Build and deploy web
+cd packages/web && npm run deploy
 ```
 
 Behavior (cloud):
 - If `Uploads` is configured and you upload a ZIP, the Worker stores it in R2.
 - If `PUBLIC_R2_BASE` is set and reachable, the sandbox downloads from that public URL; otherwise it falls back to an internal `/download/:id` route.
-- In local dev (localhost), the app intentionally uses direct upload (no R2) so the sandbox doesn’t curl a non‑routable localhost URL.
+- In local dev (localhost), the app intentionally uses direct upload (no R2) so the sandbox doesn't curl a non‑routable localhost URL.
 
 ## Environment (Claude via Bedrock)
-You can run with Bedrock credentials or an Anthropic API key. Put secrets in `.dev.vars` for local; set as Worker env vars for cloud.
+You can run with Bedrock credentials or an Anthropic API key. Put secrets in `packages/worker/.dev.vars` for local; set as Worker env vars for cloud.
 
-Example `.dev.vars` (Bedrock):
+Example `packages/worker/.dev.vars` (Bedrock):
 ```bash
 AWS_REGION=us-east-1
 ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION=us-east-1
@@ -116,11 +135,15 @@ Either Bedrock or Anthropic API key will pass the sandbox health check.
   - If the ZIP wraps the project in an extra folder, the app attempts to detect nested roots automatically.
 
 ## Scripts
-- `npm run dev`  — local dev (`wrangler dev`)
-- `npm run deploy` — deploy to Cloudflare
+Root package.json provides convenience commands:
+- `npm run install:all` — Install dependencies for both worker and web packages
+- `npm run dev:worker` — Start the worker backend in local dev mode
+- `npm run dev:web` — Start the web frontend in local dev mode
+
+Each package also has its own scripts. See `packages/worker/package.json` and `packages/web/package.json` for package-specific commands like `deploy`.
 
 ## Security
-- Never commit secrets. Keep `.dev.vars` local.
+- Never commit secrets. Keep `packages/worker/.dev.vars` local and ensure it's in `.gitignore`.
 - Use Worker environment variables for deployed environments.
 
 ## License

@@ -119,11 +119,11 @@ export class BusinessLogicExtractionOperation extends AgentOperation<ExtractionI
           workflows: toArray(parsed.workflows),
           summary: typeof parsed.summary === 'string' ? parsed.summary : undefined
         };
-      } catch {
+      } catch (err) {
         progress?.('Claude: non-JSON extraction output; falling back to empty lists');
         return { module: inputs.modulePath, entities: [], services: [], controllers: [], workflows: [], summary: undefined };
       }
-    } catch {
+    } catch (err) {
       progress?.('Claude: extraction command error');
       return { module: inputs.modulePath, entities: [], services: [], controllers: [], workflows: [], summary: undefined };
     }

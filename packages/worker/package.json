@@ -1,0 +1,19 @@
+{
+  "name": "boilerplate-m2-analysis",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "types": "npx wrangler types",
+    "dev": "npm run types && npx wrangler dev --port 8787",
+    "deploy": "npm run types && npx wrangler deploy"
+  },
+  "dependencies": {
+    "@cloudflare/sandbox": "0.4.14",
+    "hono": "^4.4.10"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "wrangler": "^4.45.3"
+  }
+}
