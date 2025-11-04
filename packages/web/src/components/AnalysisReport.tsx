@@ -14,7 +14,7 @@ export function AnalysisReport({ reportData, effectiveTheme, onDownloadPdf }: An
   }
 
   return (
-    <View>
+    <View width="100%">
       <Flex
         direction="row"
         justifyContent="space-between"
@@ -30,11 +30,12 @@ export function AnalysisReport({ reportData, effectiveTheme, onDownloadPdf }: An
       </Flex>
       <Divider size="M" marginBottom="size-300" />
       <Grid
-        columns={repeat('auto-fill', 'minmax(700px, 1fr)')}
+        columns={repeat('auto-fit', 'minmax(700px, 1fr)')}
         autoRows="auto"
         gap="size-300"
+        width="100%"
         UNSAFE_style={{
-          gridTemplateColumns: 'repeat(auto-fill, minmax(700px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(700px, 1fr))',
         }}
       >
         {reportData.results.map((module, idx) => (

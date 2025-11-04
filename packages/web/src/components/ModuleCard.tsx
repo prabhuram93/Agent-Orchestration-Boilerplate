@@ -15,6 +15,7 @@ export function ModuleCard({ module, effectiveTheme }: ModuleCardProps) {
 
   return (
     <View
+      width="100%"
       borderWidth="thin"
       borderColor="gray-400"
       borderRadius="large"

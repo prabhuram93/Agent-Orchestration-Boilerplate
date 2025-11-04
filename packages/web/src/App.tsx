@@ -1,11 +1,10 @@
 import { useState, useCallback } from 'react'
-import { Provider, defaultTheme, Flex, Divider } from '@adobe/react-spectrum'
+import { Provider, defaultTheme, Flex } from '@adobe/react-spectrum'
 import {
   Header,
   AnalysisForm,
   ProgressLog,
   ResultDisplay,
-  ModulePickerDialog,
   AnalysisReport,
 } from './components'
 import { useTheme, useAutoScroll } from './hooks'
@@ -23,7 +22,6 @@ function App() {
   const [result, setResult] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [reportData, setReportData] = useState<AnalysisData | null>(null)
-  const [showModulePicker, setShowModulePicker] = useState(false)
   const [availableModules, setAvailableModules] = useState<string[]>([])
   const [selectedModules, setSelectedModules] = useState<string[]>([])
   const [sessionId, setSessionId] = useState('')
@@ -76,7 +74,8 @@ function App() {
               setSessionId(obj.sessionId || '')
               setRootPath(obj.rootPath || '')
               setAvailableModules(obj.modules || [])
-              setShowModulePicker(true)
+              // Start with no modules selected by default
+              setSelectedModules([])
             }
           } catch (e) {
             console.error('Failed to parse line', line, e)
@@ -137,7 +136,6 @@ function App() {
       return
     }
 
-    setShowModulePicker(false)
     setIsAnalyzing(true)
     resetAutoScroll()
 
@@ -198,6 +196,14 @@ function App() {
     window.print()
   }, [])
 
+  const handleSelectAll = useCallback(() => {
+    setSelectedModules(availableModules)
+  }, [availableModules])
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedModules([])
+  }, [])
+
   return (
     <Provider theme={defaultTheme} colorScheme={effectiveTheme}>
       <Flex direction="column" height="100vh">
@@ -215,9 +221,15 @@ function App() {
             zipFile={zipFile}
             isAnalyzing={isAnalyzing}
             effectiveTheme={effectiveTheme}
+            availableModules={availableModules}
+            selectedModules={selectedModules}
             onRepoUrlChange={setRepoUrl}
             onFileChange={handleFileChange}
             onAnalyze={handleAnalyze}
+            onModuleSelectionChange={setSelectedModules}
+            onAnalyzeSelected={handleModuleSelection}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={handleDeselectAll}
           />
 
           <ProgressLog
@@ -228,8 +240,6 @@ function App() {
             effectiveTheme={effectiveTheme}
           />
           
-          <Divider />
-
           <ResultDisplay result={result} effectiveTheme={effectiveTheme} />
 
 
@@ -240,15 +250,6 @@ function App() {
               onDownloadPdf={handleDownloadPdf}
             />
           )}
-
-          <ModulePickerDialog
-            showModulePicker={showModulePicker}
-            availableModules={availableModules}
-            selectedModules={selectedModules}
-            onSelectionChange={setSelectedModules}
-            onDismiss={() => setShowModulePicker(false)}
-            onConfirm={handleModuleSelection}
-          />
         </Flex>
       </Flex>
     </Provider>
