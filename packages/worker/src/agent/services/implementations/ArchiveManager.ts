@@ -157,5 +157,3 @@ export async function prepareUpload(
   onProgress?.('Upload ready at: ' + rootPath);
   return { baseDir: dir, rootPath };
 }
-
-
