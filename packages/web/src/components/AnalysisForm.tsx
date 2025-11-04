@@ -45,20 +45,15 @@ export function AnalysisForm({
       }}
     >
       <Flex direction="column" gap="size-200">
-        <Flex direction="row" gap="size-200" alignItems="end">
-          <TextField
-            label="Repo URL"
-            value={repoUrl}
-            onChange={(url) => {
-              onRepoUrlChange((url || '').trim())
-            }}
-            width="size-6000"
-            placeholder="https://github.com/owner/repo.git"
-          />
-          <Button variant="accent" onPress={onAnalyze} isDisabled={isAnalyzing || availableModules.length > 0}>
-            Analyze
-          </Button>
-        </Flex>
+        <TextField
+          label="Repo URL"
+          value={repoUrl}
+          onChange={(url) => {
+            onRepoUrlChange((url || '').trim())
+          }}
+          width="100%"
+          placeholder="https://github.com/owner/repo.git"
+        />
 
         <Flex direction="row" gap="size-200" alignItems="center">
           <Text UNSAFE_style={{ fontWeight: 500 }}>Or upload a zip file:</Text>
@@ -78,10 +73,16 @@ export function AnalysisForm({
             }}
           />
           {zipFile && (
-            <Text UNSAFE_style={{ fontSize: '0.875rem', color: '#10b981' }}>
+            <Text UNSAFE_style={{ fontSize: '0.875rem', color: effectiveTheme === 'dark' ? '#a8e6cf' : '#2d5f3f', }}>
               Selected: {zipFile.name}
             </Text>
           )}
+        </Flex>
+
+        <Flex direction="row" justifyContent="end">
+          <Button variant="accent" onPress={onAnalyze} isDisabled={isAnalyzing || availableModules.length > 0}>
+            Analyze Source
+          </Button>
         </Flex>
 
         {availableModules.length > 0 && (
@@ -119,7 +120,7 @@ export function AnalysisForm({
               padding="size-200"
               backgroundColor={effectiveTheme === 'dark' ? 'gray-200' : 'gray-50'}
             >
-              <CheckboxGroup value={selectedModules} onChange={onModuleSelectionChange}>
+              <CheckboxGroup value={selectedModules} onChange={onModuleSelectionChange} isDisabled={isAnalyzing}>
                 {availableModules.map((module) => (
                   <Checkbox key={module} value={module}>
                     {module}

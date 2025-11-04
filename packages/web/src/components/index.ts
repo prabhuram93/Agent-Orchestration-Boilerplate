@@ -7,4 +7,5 @@ export { ModuleCard } from './ModuleCard'
 export { ComplexityMetrics } from './ComplexityMetrics'
 export { ComponentList } from './ComponentList'
 export { ComponentBadge } from './ComponentBadge'
+export { LogsAccordion } from './LogsAccordion'
 

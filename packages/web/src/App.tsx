@@ -1,11 +1,10 @@
 import { useState, useCallback } from 'react'
-import { Provider, defaultTheme, Flex } from '@adobe/react-spectrum'
+import { Provider, defaultTheme, Flex, View } from '@adobe/react-spectrum'
 import {
   Header,
   AnalysisForm,
-  ProgressLog,
-  ResultDisplay,
   AnalysisReport,
+  LogsAccordion,
 } from './components'
 import { useTheme, useAutoScroll } from './hooks'
 import type { AnalysisData, StreamMessage } from './types'
@@ -26,6 +25,19 @@ function App() {
   const [selectedModules, setSelectedModules] = useState<string[]>([])
   const [sessionId, setSessionId] = useState('')
   const [rootPath, setRootPath] = useState('')
+  const [metadata, setMetadata] = useState({
+    inputs: {
+      repoUrl: '',
+      uploadedFileName: '',
+      modulesSelected: [] as string[],
+    },
+    events: {
+      uploadStartTimestamp: '',
+      uploadEndTimestamp: '',
+      moduleAnalysisStartTimestamp: '',
+      moduleAnalysisEndTimestamp: '',
+    },
+  })
 
   const { containerRef, handleScroll, resetAutoScroll } = useAutoScroll<HTMLPreElement>([log])
 
@@ -76,6 +88,12 @@ function App() {
               setAvailableModules(obj.modules || [])
               // Start with no modules selected by default
               setSelectedModules([])
+              // Set upload end timestamp when modules are ready for selection
+              const uploadEndTime = new Date().toISOString()
+              setMetadata((prev) => ({
+                ...prev,
+                events: { ...prev.events, uploadEndTimestamp: uploadEndTime },
+              }))
             }
           } catch (e) {
             console.error('Failed to parse line', line, e)
@@ -92,6 +110,21 @@ function App() {
     setReportData(null)
     setIsAnalyzing(true)
     resetAutoScroll()
+
+    const uploadStartTime = new Date().toISOString()
+    setMetadata({
+      inputs: {
+        repoUrl: zipFile ? '' : repoUrl,
+        uploadedFileName: zipFile ? zipFile.name : '',
+        modulesSelected: [],
+      },
+      events: {
+        uploadStartTimestamp: uploadStartTime,
+        uploadEndTimestamp: '',
+        moduleAnalysisStartTimestamp: '',
+        moduleAnalysisEndTimestamp: '',
+      },
+    })
 
     try {
       let response: Response
@@ -139,6 +172,18 @@ function App() {
     setIsAnalyzing(true)
     resetAutoScroll()
 
+    const moduleAnalysisStartTime = new Date().toISOString()
+    setMetadata((prev) => ({
+      inputs: {
+        ...prev.inputs,
+        modulesSelected: selectedModules,
+      },
+      events: {
+        ...prev.events,
+        moduleAnalysisStartTimestamp: moduleAnalysisStartTime,
+      },
+    }))
+
     try {
       let response: Response
 
@@ -175,6 +220,15 @@ function App() {
       }
 
       await processStreamResponse(response)
+      
+      const moduleAnalysisEndTime = new Date().toISOString()
+      setMetadata((prev) => ({
+        ...prev,
+        events: {
+          ...prev.events,
+          moduleAnalysisEndTimestamp: moduleAnalysisEndTime,
+        },
+      }))
     } catch (e) {
       console.error(e)
       addLog(`Request error: ${e instanceof Error ? e.message : String(e)}`)
@@ -214,7 +268,12 @@ function App() {
           direction="column"
           gap="size-300"
           flex={1}
-          UNSAFE_style={{ padding: '1.5rem', overflow: 'auto' }}
+          UNSAFE_style={{ 
+            padding: '1.5rem', 
+            paddingBottom: '5rem', // Extra padding for the fixed accordion
+            overflow: 'hidden',
+            minHeight: 0
+          }}
         >
           <AnalysisForm
             repoUrl={repoUrl}
@@ -232,25 +291,25 @@ function App() {
             onDeselectAll={handleDeselectAll}
           />
 
-          <ProgressLog
-            log={log}
-            isAnalyzing={isAnalyzing}
-            containerRef={containerRef}
-            onScroll={handleScroll}
-            effectiveTheme={effectiveTheme}
-          />
-          
-          <ResultDisplay result={result} effectiveTheme={effectiveTheme} />
-
-
-          {reportData && (
+          <View UNSAFE_style={{ flex: 1, minHeight: 0, display: 'flex', width: '100%' }}>
             <AnalysisReport
               reportData={reportData}
               effectiveTheme={effectiveTheme}
               onDownloadPdf={handleDownloadPdf}
+              isAnalyzing={isAnalyzing}
             />
-          )}
+          </View>
         </Flex>
+
+        {/* Bottom-Anchored Logs */}
+        <LogsAccordion
+          log={log}
+          result={result}
+          metadata={metadata}
+          containerRef={containerRef}
+          onScroll={handleScroll}
+          effectiveTheme={effectiveTheme}
+        />
       </Flex>
     </Provider>
   )
