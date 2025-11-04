@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Provider,
   defaultTheme,
@@ -68,6 +68,7 @@ function App() {
   const effectiveTheme = themeMode === 'system' ? systemPreference : themeMode
   
   const [repoUrl, setRepoUrl] = useState('https://github.com/magento/magento2')
+  const [zipFile, setZipFile] = useState<File | null>(null)
   const [log, setLog] = useState<string[]>([])
   const [result, setResult] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -77,6 +78,10 @@ function App() {
   const [selectedModules, setSelectedModules] = useState<string[]>([])
   const [sessionId, setSessionId] = useState('')
   const [rootPath, setRootPath] = useState('')
+  
+  // Refs for auto-scroll functionality
+  const logContainerRef = useRef<HTMLPreElement>(null)
+  const shouldAutoScrollRef = useRef(true)
 
   useEffect(() => {
     localStorage.setItem('theme', themeMode)
@@ -93,8 +98,32 @@ function App() {
     }
   }, [])
 
+  // Auto-scroll to bottom when log updates (if user hasn't scrolled up)
+  useEffect(() => {
+    if (shouldAutoScrollRef.current && logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+    }
+  }, [log])
+
+  // Track user scroll behavior
+  const handleScroll = useCallback(() => {
+    if (logContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current
+      // Consider "at bottom" if within 10px of the bottom
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 10
+      shouldAutoScrollRef.current = isAtBottom
+    }
+  }, [])
+
   const addLog = useCallback((message: string) => {
     setLog((prev) => [...prev, message])
+  }, [])
+
+  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setZipFile(file)
+    }
   }, [])
 
   const handleAnalyze = useCallback(async () => {
@@ -102,13 +131,31 @@ function App() {
     setResult('')
     setReportData(null)
     setIsAnalyzing(true)
+    shouldAutoScrollRef.current = true // Reset auto-scroll for new analysis
 
     try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ repo: repoUrl }),
-      })
+      let response: Response
+
+      // Check if we have a file upload or just a repo URL
+      if (zipFile) {
+        const formData = new FormData()
+        formData.append('repo', repoUrl)
+        formData.append('zip', zipFile, zipFile.name)
+        if (sessionId) {
+          formData.append('sessionId', sessionId)
+        }
+
+        response = await fetch('/api/analyze', {
+          method: 'POST',
+          body: formData,
+        })
+      } else {
+        response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ repo: repoUrl }),
+        })
+      }
 
       if (!response.ok) {
         const text = await response.text()
@@ -162,7 +209,7 @@ function App() {
     } finally {
       setIsAnalyzing(false)
     }
-  }, [repoUrl, addLog])
+  }, [repoUrl, zipFile, sessionId, addLog])
 
   const handleModuleSelection = useCallback(async () => {
     if (selectedModules.length === 0) {
@@ -172,18 +219,36 @@ function App() {
 
     setShowModulePicker(false)
     setIsAnalyzing(true)
+    shouldAutoScrollRef.current = true // Reset auto-scroll for module selection
 
     try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          repo: repoUrl,
-          sessionId,
-          selectedModules,
-          rootPath,
-        }),
-      })
+      let response: Response
+
+      // Check if we have a file upload or just a repo URL
+      if (zipFile) {
+        const formData = new FormData()
+        formData.append('repo', repoUrl)
+        formData.append('zip', zipFile, zipFile.name)
+        formData.append('sessionId', sessionId)
+        formData.append('selectedModules', JSON.stringify(selectedModules))
+        formData.append('rootPath', rootPath)
+
+        response = await fetch('/api/analyze', {
+          method: 'POST',
+          body: formData,
+        })
+      } else {
+        response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            repo: repoUrl,
+            sessionId,
+            selectedModules,
+            rootPath,
+          }),
+        })
+      }
 
       if (!response.ok) {
         const text = await response.text()
@@ -232,7 +297,7 @@ function App() {
     } finally {
       setIsAnalyzing(false)
     }
-  }, [repoUrl, sessionId, selectedModules, rootPath, addLog])
+  }, [repoUrl, zipFile, sessionId, selectedModules, rootPath, addLog])
 
   const handleDownloadPdf = useCallback(() => {
     window.print()
@@ -283,21 +348,45 @@ function App() {
           flex={1}
           UNSAFE_style={{ padding: '1.5rem', overflow: 'auto' }}
         >
-      <Flex direction="row" gap="size-200" alignItems="end">
-        <TextField
-          label="Repo URL"
-          value={repoUrl}
-          onChange={setRepoUrl}
-          width="size-6000"
-          placeholder="https://github.com/owner/repo.git"
-        />
-        <Button
-          variant="accent"
-          onPress={handleAnalyze}
-          isDisabled={isAnalyzing}
-        >
-          Analyze
-        </Button>
+      <Flex direction="column" gap="size-200">
+        <Flex direction="row" gap="size-200" alignItems="end">
+          <TextField
+            label="Repo URL"
+            value={repoUrl}
+            onChange={setRepoUrl}
+            width="size-6000"
+            placeholder="https://github.com/owner/repo.git"
+          />
+          <Button
+            variant="accent"
+            onPress={handleAnalyze}
+            isDisabled={isAnalyzing}
+          >
+            Analyze
+          </Button>
+        </Flex>
+        
+        <Flex direction="row" gap="size-200" alignItems="center">
+          <Text UNSAFE_style={{ fontWeight: 500 }}>Or upload a zip file:</Text>
+          <input
+            type="file"
+            accept=".zip"
+            onChange={handleFileChange}
+            style={{
+              padding: '8px',
+              borderRadius: '4px',
+              border: effectiveTheme === 'dark' ? '1px solid #555' : '1px solid #ccc',
+              backgroundColor: effectiveTheme === 'dark' ? '#2a2a2a' : '#fff',
+              color: effectiveTheme === 'dark' ? '#fff' : '#000',
+              cursor: 'pointer',
+            }}
+          />
+          {zipFile && (
+            <Text UNSAFE_style={{ fontSize: '0.875rem', color: '#10b981' }}>
+              Selected: {zipFile.name}
+            </Text>
+          )}
+        </Flex>
       </Flex>
 
       <View>
@@ -306,15 +395,19 @@ function App() {
           {isAnalyzing && <ProgressBar isIndeterminate width="size-1000" aria-label="Analyzing" />}
         </Flex>
         <Well marginTop="size-100">
-          <pre style={{
-            background: '#111',
-            color: '#0f0',
-            padding: '1rem',
-            whiteSpace: 'pre-wrap',
-            margin: 0,
-            maxHeight: '200px',
-            overflow: 'auto'
-          }}>
+          <pre 
+            ref={logContainerRef}
+            onScroll={handleScroll}
+            style={{
+              background: '#111',
+              color: '#0f0',
+              padding: '1rem',
+              whiteSpace: 'pre-wrap',
+              margin: 0,
+              maxHeight: '200px',
+              overflow: 'auto'
+            }}
+          >
             {log.join('\n')}
           </pre>
         </Well>

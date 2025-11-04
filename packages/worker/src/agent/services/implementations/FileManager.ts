@@ -9,7 +9,40 @@ export class FileManager implements IFileManager {
     if (!this.sandbox) {
       return ['app/code/Vendor/ModuleA', 'app/code/Vendor/ModuleB'];
     }
-    const cmd = `bash -lc "set -e; if [ -d '${rootPath}/app/code' ]; then ls -d ${rootPath}/app/code/*/* 2>/dev/null || true; fi"`;
+    // Discover Magento modules under app/code by looking for registration.php or etc/module.xml
+    // Covers vendors like Aheadworks, AppStore, Magento, etc. and preserves quoting.
+    const cmd = `bash -lc '\nROOT=${JSON.stringify(rootPath).slice(1,-1)}; \
+OUT=""; \
+if [ -d "$ROOT/app/code" ]; then \
+  OUT=$( { \
+      find "$ROOT/app/code" -maxdepth 6 -type f -name registration.php 2>/dev/null; \
+      find "$ROOT/app/code" -maxdepth 6 -type f -path "*/etc/module.xml" 2>/dev/null; \
+    } | while IFS= read -r f; do \
+        d=$(dirname "$f"); \
+        if echo "$f" | grep -q "/etc/module.xml$"; then \
+          moddir=$(dirname "$d"); \
+        else \
+          moddir="$d"; \
+        fi; \
+        echo "$moddir"; \
+      done | sort -u ); \
+fi; \
+if [ -z "$OUT" ]; then \
+  OUT=$( { \
+      find "$ROOT" -maxdepth 8 -type f -name registration.php 2>/dev/null; \
+      find "$ROOT" -maxdepth 8 -type f -path "*/etc/module.xml" 2>/dev/null; \
+    } | grep "/app/code/" \
+      | while IFS= read -r f; do \
+          d=$(dirname "$f"); \
+          if echo "$f" | grep -q "/etc/module.xml$"; then \
+            moddir=$(dirname "$d"); \
+          else \
+            moddir="$d"; \
+          fi; \
+          echo "$moddir"; \
+        done | sort -u ); \
+fi; \
+echo "$OUT" || true'`;
     const res = await this.sandbox.exec(cmd);
     if (res.success !== false && res.stdout) {
       return res.stdout.split('\n').map((s: string) => s.trim()).filter(Boolean);
