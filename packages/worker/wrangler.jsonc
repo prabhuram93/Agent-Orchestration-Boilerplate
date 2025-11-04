@@ -1,5 +1,5 @@
 {
-  "name": "boilerplate-m2-analysis",
+  "name": "boilerplate-m2-analysis-km",
   "main": "src/index.ts",
   "compatibility_date": "2025-05-06",
   "compatibility_flags": ["nodejs_compat"],
@@ -8,8 +8,7 @@
   },
   "vars": {
     "ENV": "local",
-    "PUBLIC_R2_BASE": "",
-    "AWS_BEARER_TOKEN_BEDROCK": ""
+    "PUBLIC_R2_BASE": ""
   },
   "containers": [
     {

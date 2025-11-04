@@ -1,10 +1,21 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { getSandbox } from '@cloudflare/sandbox';
 
 // // --- Minimal boilerplate agent (trimmed imports kept local) ---
 import { startAnalysis } from './agent/services/implementations/AnalysisOrchestrator';
 
 const app = new Hono<{Bindings: Env}>();
+
+// Enable CORS for frontend access
+app.use('/*', cors({
+  origin: [
+    'http://localhost:8785',
+    'http://localhost:8786',
+    'https://boilerplate-m2-analysis-km-web-staging.apimesh-adobe-test.workers.dev',
+    'https://boilerplate-m2-analysis-km-web.apimesh-adobe-test.workers.dev'],
+  credentials: true,
+}));
 
 app.get('/favicon.ico', () => new Response(null, { status: 204 }));
 

@@ -12,6 +12,9 @@ import { useTheme, useAutoScroll } from './hooks'
 import type { AnalysisData, StreamMessage } from './types'
 import './App.css'
 
+// Get API URL from environment variables
+const API_URL = import.meta.env.VITE_API_URL;
+
 function App() {
   const { themeMode, setThemeMode, effectiveTheme } = useTheme()
   const [repoUrl, setRepoUrl] = useState('https://github.com/magento/magento2')
@@ -100,12 +103,12 @@ function App() {
         if (sessionId) {
           formData.append('sessionId', sessionId)
         }
-        response = await fetch('/api/analyze', {
+        response = await fetch(`${API_URL}/api/analyze`, {
           method: 'POST',
           body: formData,
         })
       } else {
-        response = await fetch('/api/analyze', {
+        response = await fetch(`${API_URL}/api/analyze`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ repo: repoUrl }),
@@ -149,12 +152,12 @@ function App() {
         formData.append('selectedModules', JSON.stringify(selectedModules))
         formData.append('rootPath', rootPath)
 
-        response = await fetch('/api/analyze', {
+        response = await fetch(`${API_URL}/api/analyze`, {
           method: 'POST',
           body: formData,
         })
       } else {
-        response = await fetch('/api/analyze', {
+        response = await fetch(`${API_URL}/api/analyze`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
