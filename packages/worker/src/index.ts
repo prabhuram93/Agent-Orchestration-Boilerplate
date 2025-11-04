@@ -11,10 +11,35 @@ const app = new Hono();
 
 app.get('/favicon.ico', () => new Response(null, { status: 204 }));
 
+function b64urlDecode(s: string): string {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = s.length % 4;
+  if (pad) s += '='.repeat(4 - pad);
+  // @ts-ignore
+  return atob(s);
+}
+
+app.get('/download/:id', async (c) => {
+  const id = c.req.param('id');
+  const key = b64urlDecode(id);
+  const bucket = (c as any).env?.Uploads as R2Bucket | undefined;
+  if (!bucket) return c.text('R2 not configured', 500);
+  const obj = await bucket.get(key);
+  if (!obj) return new Response('Not Found', { status: 404 });
+  return new Response(obj.body, {
+    status: 200,
+    headers: {
+      'content-type': obj.httpMetadata?.contentType || 'application/octet-stream',
+      'cache-control': 'no-cache'
+    }
+  });
+});
+
 app.post('/api/analyze', async (c) => {
   const contentType = c.req.header('content-type') || '';
   let body: any = {};
   let uploadFile: File | undefined = undefined;
+  let downloadUrl: string | undefined = undefined;
   if (contentType.includes('multipart/form-data')) {
     const fd = await c.req.formData();
     const f = fd.get('zip');
@@ -67,12 +92,49 @@ app.post('/api/analyze', async (c) => {
           return;
         }
         try {
+          const bucket = (c as any).env?.Uploads as R2Bucket | undefined;
+          const publicBase = (c as any).env?.PUBLIC_R2_BASE as string | undefined;
+          const cur = new URL(c.req.url);
+          const isLocalHost = cur.hostname === 'localhost' || cur.hostname === '127.0.0.1';
+          if (bucket && uploadFile && !isLocalHost) {
+            const key = `uploads/${Date.now()}-${(uploadFile as any).name || 'repo.zip'}`;
+            const ct = (uploadFile as any).type || 'application/zip';
+            await bucket.put(key, (uploadFile as any).stream(), { httpMetadata: { contentType: ct } });
+            const u = new URL(c.req.url);
+            const internalBase = `${u.protocol}//${u.host}`;
+            // @ts-ignore
+            const b64 = btoa(key).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            const internalUrl = `${internalBase}/download/${b64}`;
+            let chosenUrl: string | undefined = undefined;
+            if (publicBase && typeof publicBase === 'string') {
+              const base = publicBase.replace(/\/$/, '');
+              const segments = key.split('/').map((s) => encodeURIComponent(s)).join('/');
+              const candidate = `${base}/${segments}`;
+              try {
+                const head = await fetch(candidate, { method: 'HEAD' });
+                if (head.ok) {
+                  chosenUrl = candidate;
+                } else {
+                  onProgress(`Public R2 URL not accessible (status ${head.status}); falling back to internal route.`);
+                }
+              } catch (e) {
+                onProgress('Public R2 URL check failed; falling back to internal route.');
+              }
+            }
+            downloadUrl = chosenUrl || internalUrl;
+            onProgress('Uploaded archive to R2; fetching from sandbox.');
+            uploadFile = undefined;
+          } else if (bucket && uploadFile && isLocalHost) {
+            onProgress('Local dev detected; using direct upload instead of R2.');
+          }
+
           const { result, selectionRequested } = await startAnalysis({
             repo,
             rootPath,
             selectedModules: Array.isArray(body.selectedModules) ? body.selectedModules : undefined,
             envVars,
-            uploadFile
+            uploadFile,
+            downloadUrl,
           }, {
             sandbox,
             workerEnv: (c as any).env as any,

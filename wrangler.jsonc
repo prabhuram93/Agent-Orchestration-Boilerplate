@@ -27,6 +27,12 @@
       "tag": "v1"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "Uploads",
+      "bucket_name": "code-analysis-zip-uploads"
+    }
+  ],
   "observability": { "enabled": true }
 }
 

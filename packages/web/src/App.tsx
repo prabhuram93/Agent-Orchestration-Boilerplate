@@ -139,12 +139,10 @@ function App() {
       // Check if we have a file upload or just a repo URL
       if (zipFile) {
         const formData = new FormData()
-        formData.append('repo', repoUrl)
         formData.append('zip', zipFile, zipFile.name)
         if (sessionId) {
           formData.append('sessionId', sessionId)
         }
-
         response = await fetch('/api/analyze', {
           method: 'POST',
           body: formData,
@@ -353,7 +351,7 @@ function App() {
           <TextField
             label="Repo URL"
             value={repoUrl}
-            onChange={setRepoUrl}
+            onChange={(url) => { setRepoUrl((url || '').trim())}}
             width="size-6000"
             placeholder="https://github.com/owner/repo.git"
           />
