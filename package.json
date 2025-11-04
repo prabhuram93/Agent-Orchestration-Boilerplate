@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "install:all": "cd packages/worker && npm install && cd ../web && npm install",
     "dev:worker": "cd packages/worker && npm run dev",
     "dev:web": "cd packages/web && npm run dev",
-    "install:all": "cd packages/worker && npm install && cd ../web && npm install"
   },
   "dependencies": {
   },

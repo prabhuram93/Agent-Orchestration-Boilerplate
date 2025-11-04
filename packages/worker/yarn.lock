@@ -31,11 +31,6 @@
   resolved "https://registry.npmjs.org/@cloudflare/workerd-darwin-arm64/-/workerd-darwin-arm64-1.20251011.0.tgz"
   integrity sha512-1WuFBGwZd15p4xssGN/48OE2oqokIuc51YvHvyNivyV8IYnAs3G9bJNGWth1X7iMDPe4g44pZrKhRnISS2+5dA==
 
-"@cloudflare/workers-types@^4.20251011.0", "@cloudflare/workers-types@^4.20251014.0":
-  version "4.20251014.0"
-  resolved "https://registry.npmjs.org/@cloudflare/workers-types/-/workers-types-4.20251014.0.tgz"
-  integrity sha512-tEW98J/kOa0TdylIUOrLKRdwkUw0rvvYVlo+Ce0mqRH3c8kSoxLzUH9gfCvwLe0M89z1RkzFovSKAW2Nwtyn3w==
-
 "@cspotcode/source-map-support@0.8.1":
   version "0.8.1"
   resolved "https://registry.npmjs.org/@cspotcode/source-map-support/-/source-map-support-0.8.1.tgz"
