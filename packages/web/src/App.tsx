@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Provider, defaultTheme, Flex } from '@adobe/react-spectrum'
+import { Provider, defaultTheme, Flex, Divider } from '@adobe/react-spectrum'
 import {
   Header,
   AnalysisForm,
@@ -201,7 +201,7 @@ function App() {
   return (
     <Provider theme={defaultTheme} colorScheme={effectiveTheme}>
       <Flex direction="column" height="100vh">
-        <Header themeMode={themeMode} onThemeChange={setThemeMode} />
+        <Header themeMode={themeMode} onThemeChange={setThemeMode}/>
 
         {/* Main Content */}
         <Flex
@@ -227,8 +227,11 @@ function App() {
             onScroll={handleScroll}
             effectiveTheme={effectiveTheme}
           />
+          
+          <Divider />
 
           <ResultDisplay result={result} effectiveTheme={effectiveTheme} />
+
 
           {reportData && (
             <AnalysisReport

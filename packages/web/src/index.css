@@ -14,4 +14,18 @@ body {
 
 #root {
   min-height: 100vh;
+
+  @media print {
+    * {
+      display: block !important;
+      position: relative !important;
+      width: auto !important;
+      height: auto !important;
+      overflow: visible !important;
+      margin-left: 0 !important;
+    }
+    #header {
+      display: none !important;
+    }
+  }
 }

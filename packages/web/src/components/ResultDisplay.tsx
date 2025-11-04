@@ -8,7 +8,7 @@ interface ResultDisplayProps {
 export function ResultDisplay({ result, effectiveTheme }: ResultDisplayProps) {
   return (
     <View>
-      <Heading level={3} margin={0}>Final Result</Heading>
+      <Heading level={3} margin={0}>Result</Heading>
       <View
         marginTop="size-100"
         borderWidth="thin"

@@ -24,6 +24,7 @@ export function Header({ themeMode, onThemeChange }: HeaderProps) {
       borderBottomWidth="thin"
       paddingX="size-300"
       paddingY="size-200"
+      id={'header'}
     >
       <Flex direction="row" justifyContent="space-between" alignItems="center" gap="size-200">
         <Heading level={1} margin={0} UNSAFE_style={{ fontSize: '1.5rem' }}>
