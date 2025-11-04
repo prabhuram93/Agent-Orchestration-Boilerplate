@@ -222,6 +222,7 @@ function App() {
             isAnalyzing={isAnalyzing}
             containerRef={containerRef}
             onScroll={handleScroll}
+            effectiveTheme={effectiveTheme}
           />
 
           <ResultDisplay result={result} />
