@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx wrangler dev --port 8787",
-    "deploy": "npx wrangler deploy"
+    "types": "npx wrangler types",
+    "dev": "npm run types && npx wrangler dev --port 8787",
+    "deploy": "npm run types && npx wrangler deploy"
   },
   "dependencies": {
-    "hono": "^4.4.10",
-    "@cloudflare/sandbox": "0.4.14"
+    "@cloudflare/sandbox": "0.4.14",
+    "hono": "^4.4.10"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

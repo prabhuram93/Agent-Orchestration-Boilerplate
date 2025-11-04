@@ -7,7 +7,8 @@
     "port": 8787
   },
   "vars": {
-    "ENV": "local"
+    "ENV": "local",
+    "PUBLIC_R2_BASE": ""
   },
   "containers": [
     {

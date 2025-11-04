@@ -1,13 +1,10 @@
 import { Hono } from 'hono';
-import { cors } from 'hono/cors';
 import { getSandbox } from '@cloudflare/sandbox';
 
 // // --- Minimal boilerplate agent (trimmed imports kept local) ---
-import { SimpleAnalysisAgent } from './agent/core/simpleAnalysisAgent';
 import { startAnalysis } from './agent/services/implementations/AnalysisOrchestrator';
-import { prepareUpload } from './agent/services/implementations/ArchiveManager';
 
-const app = new Hono();
+const app = new Hono<{Bindings: Env}>();
 
 app.get('/favicon.ico', () => new Response(null, { status: 204 }));
 
@@ -22,7 +19,7 @@ function b64urlDecode(s: string): string {
 app.get('/download/:id', async (c) => {
   const id = c.req.param('id');
   const key = b64urlDecode(id);
-  const bucket = (c as any).env?.Uploads as R2Bucket | undefined;
+  const bucket = c.env.Uploads as R2Bucket;
   if (!bucket) return c.text('R2 not configured', 500);
   const obj = await bucket.get(key);
   if (!obj) return new Response('Not Found', { status: 404 });
@@ -70,7 +67,7 @@ app.post('/api/analyze', async (c) => {
   let sandbox: any | undefined;
   let sessionId: string | undefined = undefined;
   try {
-    const binding = (c as any).env?.Sandbox;
+    const binding = c.env.Sandbox;
     if (binding) {
       const id: string = typeof body.sessionId === 'string' && body.sessionId.length > 0
         ? body.sessionId
@@ -92,8 +89,8 @@ app.post('/api/analyze', async (c) => {
           return;
         }
         try {
-          const bucket = (c as any).env?.Uploads as R2Bucket | undefined;
-          const publicBase = (c as any).env?.PUBLIC_R2_BASE as string | undefined;
+          const bucket = c.env.Uploads as R2Bucket;
+          const publicBase = c.env.PUBLIC_R2_BASE as string;
           const cur = new URL(c.req.url);
           const isLocalHost = cur.hostname === 'localhost' || cur.hostname === '127.0.0.1';
           if (bucket && uploadFile && !isLocalHost) {
@@ -137,7 +134,7 @@ app.post('/api/analyze', async (c) => {
             downloadUrl,
           }, {
             sandbox,
-            workerEnv: (c as any).env as any,
+            workerEnv: c.env,
             onProgress,
             onEvent: (evt) => {
               if (evt && (evt as any).type === 'select-modules') {
