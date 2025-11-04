@@ -101,7 +101,12 @@ function App() {
   // Auto-scroll to bottom when log updates (if user hasn't scrolled up)
   useEffect(() => {
     if (shouldAutoScrollRef.current && logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+      // Use setTimeout to ensure DOM has updated before scrolling
+      setTimeout(() => {
+        if (logContainerRef.current) {
+          logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+        }
+      }, 0)
     }
   }, [log])
 
@@ -370,13 +375,15 @@ function App() {
             type="file"
             accept=".zip"
             onChange={handleFileChange}
+            disabled={isAnalyzing}
             style={{
               padding: '8px',
               borderRadius: '4px',
               border: effectiveTheme === 'dark' ? '1px solid #555' : '1px solid #ccc',
               backgroundColor: effectiveTheme === 'dark' ? '#2a2a2a' : '#fff',
               color: effectiveTheme === 'dark' ? '#fff' : '#000',
-              cursor: 'pointer',
+              cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+              opacity: isAnalyzing ? 0.5 : 1,
             }}
           />
           {zipFile && (
